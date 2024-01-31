@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<defaults>
+  <entry>
+    <key>baseImageUrl</key>
+    <value>https://img.ophim11.cc/</value>
+  </entry>
+  <entry>
+    <key>baseUrl</key>
+    <value>https://ophim11.cc/</value>
+  </entry>
+</defaults>
