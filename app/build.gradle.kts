@@ -120,7 +120,6 @@ dependencies {
     implementation ("com.squareup.okhttp3:logging-interceptor:$okHttpLoggingVersion")
 
     implementation ("com.google.code.gson:gson:$gsonVersion")
-
     implementation ("io.coil-kt:coil-compose:$coilVersion")
 
     implementation("androidx.datastore:datastore-preferences:$datastoreVersion")

@@ -6,6 +6,7 @@ import com.android.movieapp.db.HistoryDao
 import com.android.movieapp.models.entities.MovieHistory
 import com.android.movieapp.network.Api
 import com.android.movieapp.network.service.OMovieRequest
+import com.android.movieapp.paging.MyMoviePaging
 import com.android.movieapp.paging.OMoviePaging
 import com.android.movieapp.paging.SearchOMoviePaging
 import com.android.movieapp.ui.media.FilterCategory
@@ -75,6 +76,21 @@ class OMovieRepository(
                 filterCategory,
                 filterCountry,
                 year
+            )
+        }
+    )
+        .flow
+        .flowOn(Dispatchers.IO)
+
+    fun getMyMovies() = Pager(
+        config = PagingConfig(
+            pageSize = Api.PAGING_SIZE,
+            prefetchDistance = Api.PAGING_SIZE,
+            initialLoadSize = Api.PAGING_SIZE,
+        ),
+        pagingSourceFactory = {
+            MyMoviePaging(
+                oMovieRequest
             )
         }
     )

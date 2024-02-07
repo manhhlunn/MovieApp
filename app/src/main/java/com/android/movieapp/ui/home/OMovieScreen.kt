@@ -51,6 +51,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import com.android.movieapp.MovieApp
 import com.android.movieapp.NavScreen
 import com.android.movieapp.R
+import com.android.movieapp.models.network.MyMovie
 import com.android.movieapp.models.network.OMovie
 import com.android.movieapp.repository.OMovieRepository
 import com.android.movieapp.ui.configure.SearchBar
@@ -108,6 +109,13 @@ fun OMovieScreen(navController: NavController) {
                     hiltViewModel<SearchOMovieViewModel>()
                 )
             }
+
+            composable(route = BottomNavigationScreen.MyMovieScreen.route) {
+                MyMovieScreen(
+                    navController = navController,
+                    hiltViewModel<MyMovieViewModel>()
+                )
+            }
         }
     }
 }
@@ -151,6 +159,12 @@ class SearchOMovieViewModel @Inject constructor(private val oMovieRepository: OM
     init {
         fetch(OMovieFilter())
     }
+}
+
+@HiltViewModel
+class MyMovieViewModel @Inject constructor(oMovieRepository: OMovieRepository) : ViewModel() {
+
+    val items = oMovieRepository.getMyMovies().cachedIn(viewModelScope)
 }
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -335,6 +349,51 @@ fun BaseOMovieScreen(navController: NavController, viewModel: BaseOMovieViewMode
     }
 }
 
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun MyMovieScreen(navController: NavController, viewModel: MyMovieViewModel) {
+
+    val values = viewModel.items.collectAsLazyPagingItems()
+
+    val pullRefreshState =
+        rememberPullRefreshState(
+            refreshing = values.loadState.refresh is LoadState.Loading,
+            onRefresh = {
+                values.refresh()
+            })
+
+    Box(
+        modifier = Modifier
+            .pullRefresh(pullRefreshState)
+    ) {
+        LazyVerticalGrid(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 32.dp),
+            columns = GridCells.Fixed(getColumnCount()),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
+        ) {
+            items(values.itemCount) { index ->
+                values[index]?.let { item ->
+                    MyMovieItemView(movie = item) {
+                        navController.navigate(
+                            NavScreen.MyMovieDetailScreen.navigateWithArgument(
+                                item
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        PullRefreshIndicator(
+            refreshing = values.loadState.refresh is LoadState.Loading,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
+    }
+}
+
 @Composable
 fun OMovieItemView(
     modifier: Modifier = Modifier,
@@ -350,6 +409,40 @@ fun OMovieItemView(
         val posterUrl = "${MovieApp.baseImageUrl}uploads/movies/${movie.thumbUrl}"
         ProgressiveGlowingImage(
             url = posterUrl,
+            glow = true
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = movie.name ?: "",
+            style = MaterialTheme.typography.bodyMedium.copy(
+                shadow = Shadow(
+                    color = Color.Black,
+                    offset = Offset(0f, 0f),
+                    blurRadius = 1f
+                )
+            ),
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+fun MyMovieItemView(
+    modifier: Modifier = Modifier,
+    movie: MyMovie,
+    onExpandDetails: (MyMovie) -> Unit
+) {
+    Column(modifier = modifier
+        .padding(4.dp)
+        .clickable {
+            onExpandDetails.invoke(movie)
+        })
+    {
+
+        ProgressiveGlowingImage(
+            url = movie.posterUrl ?: "",
             glow = true
         )
         Spacer(modifier = Modifier.height(4.dp))
@@ -400,6 +493,7 @@ fun <T> FilterLine(
         }
     }
 }
+
 
 abstract class BaseOMovieViewModel : ViewModel() {
 

@@ -32,8 +32,10 @@ import com.android.movieapp.models.entities.Movie
 import com.android.movieapp.models.entities.Person
 import com.android.movieapp.models.entities.Tv
 import com.android.movieapp.models.network.ImageResponse
+import com.android.movieapp.models.network.MyMovie
 import com.android.movieapp.network.Api
 import com.android.movieapp.ui.detail.MovieDetailScreen
+import com.android.movieapp.ui.detail.MyMovieDetailScreen
 import com.android.movieapp.ui.detail.OMovieDetailScreen
 import com.android.movieapp.ui.detail.PersonDetailScreen
 import com.android.movieapp.ui.detail.TvDetailScreen
@@ -115,6 +117,20 @@ class MainActivity : ComponentActivity() {
                             ) {
 
                                 OMovieDetailScreen(
+                                    navController = navController,
+                                    viewModel = hiltViewModel()
+                                )
+                            }
+
+                            composable(
+                                route = NavScreen.MyMovieDetailScreen.routeWithArgument,
+                                arguments = listOf(
+                                    navArgument(NavScreen.MyMovieDetailScreen.myMovie) {
+                                        type = NavScreen.MyMovieDetailScreen.MyMovieDetailType()
+                                    })
+                            ) {
+
+                                MyMovieDetailScreen(
                                     navController = navController,
                                     viewModel = hiltViewModel()
                                 )
@@ -326,6 +342,40 @@ sealed class NavScreen(val route: String) {
         fun navigateWithArgument(slug: String) = buildString {
             append(route)
             append("/$slug")
+        }
+    }
+
+    data object MyMovieDetailScreen : NavScreen("my_movie_detail_screen") {
+        const val myMovie: String = "myMovie"
+        val routeWithArgument: String
+            get() = buildString {
+                append(route)
+                append("/{$myMovie}")
+            }
+
+        fun navigateWithArgument(myMovie: MyMovie) = buildString {
+            val json = Uri.encode(Gson().toJson(myMovie))
+            append(route)
+            append("/$json")
+        }
+
+        class MyMovieDetailType : NavType<MyMovie>(isNullableAllowed = false) {
+            @Suppress("DEPRECATION")
+            override fun get(bundle: Bundle, key: String): MyMovie? {
+                return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    bundle.getParcelable(key, MyMovie::class.java)
+                } else {
+                    bundle.getParcelable(key) as? MyMovie
+                }
+            }
+
+            override fun parseValue(value: String): MyMovie {
+                return Gson().fromJson(value, MyMovie::class.java)
+            }
+
+            override fun put(bundle: Bundle, key: String, value: MyMovie) {
+                bundle.putParcelable(key, value)
+            }
         }
     }
 

@@ -1,8 +1,10 @@
 package com.android.movieapp.models.network
 
 
+import android.os.Parcelable
 import androidx.annotation.Keep
 import com.google.gson.annotations.SerializedName
+import kotlinx.parcelize.Parcelize
 
 @Keep
 data class OMovieDetailResponse(
@@ -16,25 +18,25 @@ data class OMovieDetailResponse(
     val status: Boolean?
 ) {
     @Keep
+    @Parcelize
     data class Episode(
         @SerializedName("server_data")
         val serverData: List<ServerData>?,
         @SerializedName("server_name")
         val serverName: String?
-    ) {
+    ) : Parcelable {
         @Keep
+        @Parcelize
         data class ServerData(
-            @SerializedName("filename")
-            val filename: String?,
             @SerializedName("link_embed")
             val linkEmbed: String?,
             @SerializedName("link_m3u8")
             val linkM3u8: String?,
+            @SerializedName("link_mpd")
+            val linkMpd: String?,
             @SerializedName("name")
             val name: String?,
-            @SerializedName("slug")
-            val slug: String?
-        )
+        ) : Parcelable
     }
 
     @Keep

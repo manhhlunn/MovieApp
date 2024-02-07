@@ -1,6 +1,7 @@
 package com.android.movieapp.network.service
 
 import com.android.movieapp.MovieApp
+import com.android.movieapp.models.network.MyMovieResponse
 import com.android.movieapp.models.network.OMovieDetailResponse
 import com.android.movieapp.models.network.OMovieResponse
 import com.android.movieapp.ui.media.FilterCategory
@@ -51,6 +52,10 @@ class OMovieRequest(private val oMovieService: OMovieService) {
             if (filterCountry != null) put("country", filterCountry.value)
             if (year != null) put("year", year)
         }
+    )
+
+    suspend fun getMyMovies(page: Int) = oMovieService.request<MyMovieResponse>(
+        url = "https://manhhlunn.github.io/movie/movie_$page.json"
     )
 
 }

@@ -26,15 +26,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -77,6 +77,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -86,6 +87,7 @@ import com.android.movieapp.NavScreen
 import com.android.movieapp.R
 import com.android.movieapp.models.entities.MovieHistory
 import com.android.movieapp.models.network.Category
+import com.android.movieapp.models.network.MyMovie
 import com.android.movieapp.models.network.NetworkResponse
 import com.android.movieapp.models.network.OMovieDetailResponse
 import com.android.movieapp.repository.OMovieRepository
@@ -765,15 +767,341 @@ fun OMovieDetailScreen(
     }
 }
 
+@Composable
+fun MyMovieDetailScreen(
+    navController: NavController,
+    viewModel: MyMovieDetailViewModel
+) {
+
+    OnLifecycleEvent { _, event ->
+        // do stuff on event
+        when (event) {
+            Lifecycle.Event.ON_PAUSE -> {
+                viewModel.saveHistory()
+            }
+
+            else -> {}
+        }
+    }
+
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val playerIndex by viewModel.playerIndex.collectAsStateWithLifecycle()
+    val speedMode by viewModel.speedMode.collectAsStateWithLifecycle()
+    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
+    val progress by viewModel.progress.collectAsStateWithLifecycle()
+
+    var lifecycle by remember {
+        mutableStateOf(Lifecycle.Event.ON_CREATE)
+    }
+
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val configureScreen = LocalConfiguration.current
+
+    val exitFullscreen = {
+        context.setScreenOrientation(SCREEN_ORIENTATION_USER_PORTRAIT)
+    }
+
+    DisposableEffect(key1 = lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            lifecycle = event
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        val movie = uiState
+        if (movie != null) {
+            when (configureScreen.orientation) {
+                Configuration.ORIENTATION_LANDSCAPE -> {
+                    BackHandler {
+                        exitFullscreen()
+                    }
+                    CustomPlayerView(
+                        context = context,
+                        modifier = Modifier.fillMaxSize(),
+                        lifecycle = lifecycle,
+                        exoPlayer = viewModel.exoPlayer,
+                        speedMode = speedMode,
+                        fullScreen = true,
+                        isPlaying = isPlaying,
+                        progress = progress.first,
+                        duration = progress.second,
+                        onSpeedModeChange = {
+                            viewModel.changeSpeedMode()
+                        },
+                        onPreBtnClick = {
+                            viewModel.seekToPrevious()
+                        },
+                        onFastPreClick = {
+                            viewModel.seekBack()
+                        },
+                        onPlayPauseChange = {
+                            viewModel.changePlayPause()
+                        },
+                        onFastNextClick = {
+                            viewModel.seekForward()
+                        },
+                        onNextBtnClick = {
+                            viewModel.seekToNext()
+                        },
+                        onNewProgress = {
+                            viewModel.changeNewProgress(it)
+                        }
+                    )
+                }
+
+                else -> {
+                    ConstraintLayout(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        val (backIcon, backdrop, poster, title, episodes) = createRefs()
+                        val startGuideline = createGuidelineFromStart(16.dp)
+                        val endGuideline = createGuidelineFromEnd(16.dp)
+
+                        Backdrop(
+                            backdropUrl = movie.thumbUrl ?: "",
+                            Modifier
+                                .constrainAs(backdrop) {
+                                    top.linkTo(parent.top)
+                                })
+
+                        IconButton(onClick = {
+                            navController.popBackStack()
+                        }, modifier = Modifier
+                            .constrainAs(backIcon) {
+                                start.linkTo(parent.start)
+                                top.linkTo(backdrop.bottom)
+                                end.linkTo(poster.start)
+                            })
+                        {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                modifier = Modifier.scale(1.2f),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+
+                        Poster(posterUrl = movie.posterUrl ?: "", modifier = Modifier
+                            .width(120.dp)
+                            .padding(top = 120.dp)
+                            .constrainAs(poster) {
+                                centerAround(backdrop.bottom)
+                                linkTo(startGuideline, endGuideline)
+                            })
+
+                        Title(
+                            movie.name,
+                            movie.originName,
+                            modifier = Modifier
+                                .padding(horizontal = 20.dp, vertical = 8.dp)
+                                .constrainAs(title) {
+                                    top.linkTo(poster.bottom)
+                                    linkTo(start = startGuideline, end = endGuideline)
+                                })
+
+                        val episodesValue = uiState?.episodes
+                        if (episodesValue != null) {
+                            Column(modifier = Modifier
+                                .constrainAs(episodes) {
+                                    top.linkTo(title.bottom, 16.dp)
+                                    linkTo(startGuideline, endGuideline)
+                                    bottom.linkTo(parent.bottom, 16.dp)
+                                }) {
+
+                                CustomPlayerView(
+                                    context = context,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(16 / 9f),
+                                    lifecycle = lifecycle,
+                                    exoPlayer = viewModel.exoPlayer,
+                                    speedMode = speedMode,
+                                    fullScreen = false,
+                                    isPlaying = isPlaying,
+                                    progress = progress.first,
+                                    duration = progress.second,
+                                    onSpeedModeChange = {
+                                        viewModel.changeSpeedMode()
+                                    },
+                                    onPreBtnClick = {
+                                        viewModel.seekToPrevious()
+                                    },
+                                    onFastPreClick = {
+                                        viewModel.seekBack()
+                                    },
+                                    onPlayPauseChange = {
+                                        viewModel.changePlayPause()
+                                    },
+                                    onFastNextClick = {
+                                        viewModel.seekForward()
+                                    },
+                                    onNextBtnClick = {
+                                        viewModel.seekToNext()
+                                    },
+                                    onNewProgress = {
+                                        viewModel.changeNewProgress(it)
+                                    }
+                                )
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                SectionView(
+                                    items = episodesValue.serverData ?: emptyList(),
+                                    headerResId = R.string.server,
+                                    modifier = Modifier,
+                                    header = "${episodesValue.serverName}",
+                                    itemContent = { item, idx ->
+                                        Text(
+                                            text = item.name ?: "",
+                                            color = if (idx == playerIndex?.second && playerIndex?.first == episodesValue) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                shadow = Shadow(
+                                                    color = Color.Black,
+                                                    offset = Offset(0f, 0f),
+                                                    blurRadius = 0.5f
+                                                )
+                                            ),
+                                            modifier = Modifier
+                                                .background(
+                                                    if (idx == playerIndex?.second && playerIndex?.first == episodesValue) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSecondary,
+                                                    RoundedCornerShape(20)
+                                                )
+                                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                                .clickable {
+                                                    viewModel.changeEpisode(episodesValue, idx)
+                                                },
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            navController.popBackStack()
+        }
+    }
+}
+
 @HiltViewModel
 class OMovieDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     val exoPlayer: ExoPlayer,
     private val oMovieRepository: OMovieRepository
-) : ViewModel(), Player.Listener {
+) : BaseMovieDetailViewModel(exoPlayer) {
 
     private val _uiState = MutableStateFlow<OMovieDetailResponse?>(null)
     val uiState: StateFlow<OMovieDetailResponse?> = _uiState
+
+    private val _error = Channel<NetworkResponse.Error>()
+    val error = _error.receiveAsFlow()
+
+    fun saveHistory() {
+        viewModelScope.launch {
+            val slug = uiState.value?.movie?.slug ?: return@launch
+            oMovieRepository.insertHistory(
+                MovieHistory(
+                    slug = slug,
+                    serverName = playerIndex.value?.first?.serverName,
+                    index = playerIndex.value?.second ?: 0,
+                    position = exoPlayer.currentPosition
+                )
+            )
+        }
+    }
+
+    init {
+        viewModelScope.launch {
+            exoPlayer.prepare()
+            exoPlayer.addListener(this@OMovieDetailViewModel)
+            savedStateHandle.get<String>(NavScreen.OMovieDetailScreen.slug)?.let { slug ->
+                when (val response = oMovieRepository.getMovieDetail(slug)) {
+                    is NetworkResponse.Error -> _error.send(response)
+                    is NetworkResponse.Success -> {
+                        _uiState.value = response.data
+                        val movieHistory = oMovieRepository.getMovieHistory(slug)
+                        if (movieHistory != null) {
+                            val episode =
+                                response.data.episodes?.firstOrNull { it.serverName == movieHistory.serverName }
+                            if (episode != null) {
+                                prepareEpisode(episode, movieHistory.index, movieHistory.position)
+                                return@launch
+                            }
+                        }
+                        val episode = response.data.episodes?.firstOrNull()
+                        if (episode != null) {
+                            prepareEpisode(episode, 0)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@HiltViewModel
+class MyMovieDetailViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    val exoPlayer: ExoPlayer,
+    private val oMovieRepository: OMovieRepository
+) : BaseMovieDetailViewModel(exoPlayer) {
+
+    private val _uiState = MutableStateFlow<MyMovie?>(null)
+    val uiState: StateFlow<MyMovie?> = _uiState
+
+    fun saveHistory() {
+        viewModelScope.launch {
+            val slug = uiState.value?.id ?: return@launch
+            oMovieRepository.insertHistory(
+                MovieHistory(
+                    slug = slug,
+                    serverName = playerIndex.value?.first?.serverName,
+                    index = playerIndex.value?.second ?: 0,
+                    position = exoPlayer.currentPosition
+                )
+            )
+        }
+    }
+
+    init {
+        viewModelScope.launch {
+            exoPlayer.prepare()
+            exoPlayer.addListener(this@MyMovieDetailViewModel)
+            savedStateHandle.get<MyMovie>(NavScreen.MyMovieDetailScreen.myMovie)?.let { movie ->
+                _uiState.value = movie
+                if (movie.id != null) {
+                    val movieHistory = oMovieRepository.getMovieHistory(movie.id)
+                    val episode = movie.episodes
+                    if (episode != null) {
+                        if (movieHistory != null) {
+                            prepareEpisode(episode, movieHistory.index, movieHistory.position)
+                        } else {
+                            prepareEpisode(episode, 0)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+abstract class BaseMovieDetailViewModel(
+    private val exoPlayer: ExoPlayer
+) : ViewModel(), Player.Listener {
 
     private val _playerIndex = MutableStateFlow<Pair<OMovieDetailResponse.Episode, Int>?>(null)
     val playerIndex: StateFlow<Pair<OMovieDetailResponse.Episode, Int>?> = _playerIndex
@@ -786,9 +1114,6 @@ class OMovieDetailViewModel @Inject constructor(
 
     private val _progress = MutableStateFlow(0L to 0L)
     val progress: StateFlow<Pair<Long, Long>> = _progress
-
-    private val _error = Channel<NetworkResponse.Error>()
-    val error = _error.receiveAsFlow()
 
     private var progressJob: Job? = null
 
@@ -866,21 +1191,29 @@ class OMovieDetailViewModel @Inject constructor(
     }
 
     @OptIn(UnstableApi::class)
-    private suspend fun prepareEpisode(
+    suspend fun prepareEpisode(
         episode: OMovieDetailResponse.Episode,
         idx: Int,
         position: Long = 0
     ) {
         val mediaItems = episode.serverData?.mapNotNull {
-//            DashMediaSource.Factory(DefaultHttpDataSource.Factory())
-//                .createMediaSource(MediaItem.fromUri(""))
-            HlsMediaSource.Factory(DefaultHttpDataSource.Factory())
-                .createMediaSource(
-                    MediaItem.Builder()
-                        .setUri(it.linkM3u8 ?: return@mapNotNull null)
-                        .setMimeType(MimeTypes.APPLICATION_M3U8)
-                        .build()
-                )
+            return@mapNotNull if (!it.linkMpd.isNullOrEmpty()) {
+                DashMediaSource.Factory(DefaultHttpDataSource.Factory())
+                    .createMediaSource(
+                        MediaItem.Builder()
+                            .setUri(it.linkMpd)
+                            .setMimeType(MimeTypes.APPLICATION_MPD)
+                            .build()
+                    )
+            } else if (!it.linkM3u8.isNullOrEmpty()) {
+                HlsMediaSource.Factory(DefaultHttpDataSource.Factory())
+                    .createMediaSource(
+                        MediaItem.Builder()
+                            .setUri(it.linkM3u8)
+                            .setMimeType(MimeTypes.APPLICATION_M3U8)
+                            .build()
+                    )
+            } else null
         }
         if (!mediaItems.isNullOrEmpty()) {
             withContext(Dispatchers.Main) {
@@ -910,48 +1243,6 @@ class OMovieDetailViewModel @Inject constructor(
 
     private fun stopProgressUpdate() {
         progressJob?.cancel()
-    }
-
-    fun saveHistory() {
-        viewModelScope.launch {
-            val slug = uiState.value?.movie?.slug ?: return@launch
-            oMovieRepository.insertHistory(
-                MovieHistory(
-                    slug = slug,
-                    serverName = playerIndex.value?.first?.serverName,
-                    index = playerIndex.value?.second ?: 0,
-                    position = exoPlayer.currentPosition
-                )
-            )
-        }
-    }
-
-    init {
-        viewModelScope.launch {
-            exoPlayer.prepare()
-            exoPlayer.addListener(this@OMovieDetailViewModel)
-            savedStateHandle.get<String>(NavScreen.OMovieDetailScreen.slug)?.let { slug ->
-                when (val response = oMovieRepository.getMovieDetail(slug)) {
-                    is NetworkResponse.Error -> _error.send(response)
-                    is NetworkResponse.Success -> {
-                        _uiState.value = response.data
-                        val movieHistory = oMovieRepository.getMovieHistory(slug)
-                        if (movieHistory != null) {
-                            val episode =
-                                response.data.episodes?.firstOrNull { it.serverName == movieHistory.serverName }
-                            if (episode != null) {
-                                prepareEpisode(episode, movieHistory.index, movieHistory.position)
-                                return@launch
-                            }
-                        }
-                        val episode = response.data.episodes?.firstOrNull()
-                        if (episode != null) {
-                            prepareEpisode(episode, 0)
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 

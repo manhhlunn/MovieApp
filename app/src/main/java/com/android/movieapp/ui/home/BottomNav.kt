@@ -152,6 +152,11 @@ enum class BottomNavigationScreen(
     MovieMediaSearchScreen(
         "audio_search_movie", R.drawable.ic_filter, R.string.search_movie,
         TypeScreen.MEDIA
+    ),
+
+    MyMovieScreen(
+    "my_movie", R.drawable.movie_ic, R.string.movie_title,
+    TypeScreen.MEDIA
     )
 
 }

@@ -292,5 +292,5 @@ fun ExoPlayer.isEnableSelect(type: Int): Boolean {
             count += group.mediaTrackGroup.length
         }
     }
-    return count > 1
+    return count > 0
 }
