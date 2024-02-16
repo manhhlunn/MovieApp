@@ -9,12 +9,10 @@ import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
 class MovieApp : Application() {
-
     companion object {
         lateinit var baseURL: String
         lateinit var baseImageUrl: String
     }
-
 
     override fun onCreate() {
         super.onCreate()

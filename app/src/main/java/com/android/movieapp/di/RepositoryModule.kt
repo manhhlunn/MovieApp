@@ -143,6 +143,8 @@ object RepositoryModule {
         return ExoPlayer.Builder(app).apply {
             setHandleAudioBecomingNoisy(true)
             setLoadControl(loadControl)
+            setSeekBackIncrementMs(10000L)
+            setSeekForwardIncrementMs(10000L)
             setWakeMode(WAKE_MODE_NETWORK)
         }.build()
     }

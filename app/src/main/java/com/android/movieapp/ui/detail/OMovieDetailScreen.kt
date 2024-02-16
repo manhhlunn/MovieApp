@@ -43,7 +43,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +72,7 @@ import androidx.media3.common.C.TRACK_TYPE_TEXT
 import androidx.media3.common.C.TRACK_TYPE_VIDEO
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -99,7 +99,6 @@ import com.android.movieapp.ui.ext.openChromeCustomTab
 import com.android.movieapp.ui.ext.setScreenOrientation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -110,6 +109,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
+sealed class MediaState {
+    data object Init : MediaState()
+    data object Loading : MediaState()
+    data class Error(val error: Exception) : MediaState()
+    data class Playing(val isPlay: Boolean) : MediaState()
+}
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -118,37 +123,27 @@ fun CustomPlayerView(
     modifier: Modifier,
     lifecycle: Lifecycle.Event,
     exoPlayer: ExoPlayer,
-    speedMode: Boolean,
     fullScreen: Boolean,
-    isPlaying: Boolean,
-    progress: Long,
-    duration: Long,
-    onSpeedModeChange: () -> Unit = {},
-    onPlayPauseChange: () -> Unit = {},
-    onPreBtnClick: () -> Unit = {},
-    onNextBtnClick: () -> Unit = {},
-    onFastNextClick: () -> Unit = {},
-    onFastPreClick: () -> Unit = {},
-    onNewProgress: (Long) -> Unit = {}
+    mediaState: MediaState,
+    duration: Long
 ) {
+    var currentPosition by remember { mutableLongStateOf(0) }
+    var controllerShowTime by remember { mutableLongStateOf(2000L) }
 
-    val coroutineScope = rememberCoroutineScope()
-    var currentJob by remember { mutableStateOf<Job?>(null) }
     var zoomMode by remember { mutableStateOf(false) }
+    var speedMode by remember { mutableStateOf(false) }
+
     var scale by remember { mutableFloatStateOf(1f) }
-    var newProgressValue by remember { mutableLongStateOf(0L) }
-    var useNewProgressValue by remember { mutableStateOf(false) }
 
-    fun reset() {
-        currentJob?.cancel()
-        currentJob = coroutineScope.launch {
-            delay(2000)
-            currentJob = null
+    val isShowController =
+        controllerShowTime > 0 || controllerShowTime == -1L || (mediaState as? MediaState.Playing)?.isPlay != true
+
+    LaunchedEffect(key1 = controllerShowTime, key2 = isShowController) {
+        if (controllerShowTime > 0) {
+            delay(100L)
+            controllerShowTime -= 100L
         }
-    }
-
-    LaunchedEffect(true) {
-        reset()
+        if (exoPlayer.currentPosition > 0 &&  controllerShowTime != -1L) currentPosition = exoPlayer.currentPosition
     }
 
     Box {
@@ -184,29 +179,28 @@ fun CustomPlayerView(
 
         Box(
             modifier = modifier
-                .background(if (currentJob == null) Color.Transparent else Color(0x33000000))
+                .background(if (isShowController) Color(0x33000000) else Color.Transparent)
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = {
-                            reset()
+                            controllerShowTime = 2000L
                         },
                         onDoubleTap = {
-                            onFastNextClick()
+                            exoPlayer.seekForward()
                         }
                     )
                 }
         ) {
-            if (fullScreen && currentJob != null) Column(
+            if (fullScreen && isShowController) Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
             ) {
                 IconButton(
                     onClick = {
-                        reset()
+                        controllerShowTime = 2000L
                         zoomMode = !zoomMode
                     }
-                )
-                {
+                ) {
                     Icon(
                         painterResource(id = if (zoomMode) R.drawable.baseline_width_full_24 else R.drawable.baseline_width_normal_24),
                         contentDescription = "Full width",
@@ -216,11 +210,10 @@ fun CustomPlayerView(
 
                 IconButton(
                     onClick = {
-                        reset()
+                        controllerShowTime = 2000L
                         scale -= 0.02f
                     }
-                )
-                {
+                ) {
                     Icon(
                         painterResource(id = R.drawable.baseline_zoom_out_24),
                         contentDescription = "Zoom out",
@@ -229,23 +222,24 @@ fun CustomPlayerView(
                 }
             }
 
-            if (fullScreen && currentJob != null) Column(
+            if (fullScreen && isShowController) Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
             ) {
                 IconButton(onClick = {
-                    reset()
-                    onSpeedModeChange.invoke()
+                    controllerShowTime = 2000L
+                    exoPlayer.setPlaybackSpeed(if (speedMode) 1f else 1.5f)
+                    speedMode = !speedMode
                 }) {
                     Icon(
                         painterResource(id = R.drawable.baseline_speed_24),
-                        contentDescription = "Fast forward",
+                        contentDescription = "Change speed mode",
                         tint = if (speedMode) Color.Yellow else Color.White
                     )
                 }
 
                 IconButton(onClick = {
-                    reset()
+                    controllerShowTime = 2000L
                     scale += 0.02f
                 }) {
                     Icon(
@@ -256,15 +250,16 @@ fun CustomPlayerView(
                 }
             }
 
-            if (currentJob != null) Row(
+            if (isShowController) Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter),
             ) {
                 Spacer(modifier = Modifier.width(12.dp))
+
                 Text(
-                    text = if (useNewProgressValue) newProgressValue.makeTimeString() else progress.makeTimeString(),
+                    text = currentPosition.makeTimeString(),
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
                     maxLines = 1,
@@ -272,17 +267,15 @@ fun CustomPlayerView(
                 )
 
                 Slider(
-                    value = if (useNewProgressValue) newProgressValue.toFloat() else progress.toFloat(),
-                    valueRange = 0f..(duration.toFloat()),
+                    value = currentPosition.toFloat(),
+                    valueRange = 0f..duration.toFloat(),
                     onValueChange = {
-                        reset()
-                        useNewProgressValue = true
-                        newProgressValue = it.toLong()
+                        controllerShowTime = -1L
+                        currentPosition = it.toLong()
+                        exoPlayer.seekTo(it.toLong())
                     },
                     onValueChangeFinished = {
-                        reset()
-                        onNewProgress.invoke(newProgressValue)
-                        useNewProgressValue = false
+                        controllerShowTime = 2000L
                     },
                     colors = SliderDefaults.colors(
                         thumbColor = Color.White,
@@ -302,11 +295,10 @@ fun CustomPlayerView(
                     color = Color.White
                 )
 
-
                 if (exoPlayer.isEnableSelect(TRACK_TYPE_AUDIO)) {
                     IconButton(
                         onClick = {
-                            reset()
+                            controllerShowTime = 2000L
                             TrackSelectionDialogBuilder(
                                 context,
                                 "Audio",
@@ -328,7 +320,7 @@ fun CustomPlayerView(
                 if (exoPlayer.isEnableSelect(TRACK_TYPE_TEXT)) {
                     IconButton(
                         onClick = {
-                            reset()
+                            controllerShowTime = 2000L
                             TrackSelectionDialogBuilder(
                                 context,
                                 "Subtitles",
@@ -350,7 +342,7 @@ fun CustomPlayerView(
                 if (exoPlayer.isEnableSelect(TRACK_TYPE_VIDEO)) {
                     IconButton(
                         onClick = {
-                            reset()
+                            controllerShowTime = 2000L
                             TrackSelectionDialogBuilder(
                                 context,
                                 "Quality",
@@ -370,7 +362,7 @@ fun CustomPlayerView(
                 }
 
                 IconButton(onClick = {
-                    reset()
+                    controllerShowTime = 2000L
                     context.setScreenOrientation(
                         if (fullScreen) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                         else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
@@ -384,67 +376,84 @@ fun CustomPlayerView(
                 }
             }
 
-            if (currentJob != null) Row(
+            if (isShowController) Row(
                 modifier = Modifier
-                    .fillMaxWidth(0.8f)
+                    .fillMaxWidth(0.86f)
                     .align(Alignment.Center),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 IconButton(onClick = {
-                    reset()
-                    onPreBtnClick.invoke()
+                    controllerShowTime = 2000L
+                    exoPlayer.seekToPrevious()
                 }) {
                     Icon(
                         painterResource(id = R.drawable.baseline_skip_previous_24),
-                        contentDescription = "Skip previous",
-                        tint = Color.White
+                        contentDescription = "To previous",
+                        tint = Color.White,
+                        modifier = Modifier.scale(1.2f)
                     )
                 }
 
                 IconButton(onClick = {
-                    reset()
-                    onFastPreClick.invoke()
+                    controllerShowTime = 2000L
+                    exoPlayer.seekBack()
                 }) {
                     Icon(
                         painterResource(id = R.drawable.baseline_fast_rewind_24),
-                        contentDescription = "Fast rewind",
+                        contentDescription = "Seek back",
                         tint = Color.White,
-                        modifier = Modifier.scale(1.6f)
+                        modifier = Modifier.scale(1.8f)
                     )
                 }
 
+                IconButton(
+                    onClick = {
+                        controllerShowTime = 2000L
+                        if ((mediaState as MediaState.Playing).isPlay) exoPlayer.pause()
+                        else exoPlayer.play()
+                    },
+                    enabled = mediaState is MediaState.Playing
+                ) {
+                    when (mediaState) {
+                        is MediaState.Error -> Icon(
+                            painterResource(R.drawable.baseline_error_24),
+                            contentDescription = "Error",
+                            tint = Color.Red,
+                            modifier = Modifier.scale(2f)
+                        )
+
+                        is MediaState.Playing -> Icon(
+                            painterResource(if (mediaState.isPlay) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24),
+                            contentDescription = "PlayPause",
+                            tint = Color.White,
+                            modifier = Modifier.scale(2f)
+                        )
+
+                        else -> CircularProgressIndicator(color = Color.White)
+                    }
+                }
+
                 IconButton(onClick = {
-                    reset()
-                    onPlayPauseChange.invoke()
+                    controllerShowTime = 2000L
+                    exoPlayer.seekForward()
                 }) {
                     Icon(
-                        painterResource(id = if (isPlaying) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24),
-                        contentDescription = "PlayPause",
+                        painterResource(id = R.drawable.baseline_fast_forward_24),
+                        contentDescription = "Seek forward",
                         tint = Color.White,
                         modifier = Modifier.scale(1.8f)
                     )
                 }
 
                 IconButton(onClick = {
-                    reset()
-                    onFastNextClick.invoke()
-                }) {
-                    Icon(
-                        painterResource(id = R.drawable.baseline_fast_forward_24),
-                        contentDescription = "Fast Forward",
-                        tint = Color.White,
-                        modifier = Modifier.scale(1.6f)
-                    )
-                }
-
-                IconButton(onClick = {
-                    reset()
-                    onNextBtnClick.invoke()
+                    controllerShowTime = 2000L
+                    exoPlayer.seekToNext()
                 }) {
                     Icon(
                         painterResource(id = R.drawable.baseline_skip_next_24),
-                        contentDescription = "Skip next",
-                        tint = Color.White
+                        contentDescription = "To next",
+                        tint = Color.White,
+                        modifier = Modifier.scale(1.2f)
                     )
                 }
             }
@@ -458,9 +467,7 @@ fun OMovieDetailScreen(
     navController: NavController,
     viewModel: OMovieDetailViewModel
 ) {
-
     OnLifecycleEvent { _, event ->
-        // do stuff on event
         when (event) {
             Lifecycle.Event.ON_PAUSE -> {
                 viewModel.saveHistory()
@@ -472,9 +479,8 @@ fun OMovieDetailScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playerIndex by viewModel.playerIndex.collectAsStateWithLifecycle()
-    val speedMode by viewModel.speedMode.collectAsStateWithLifecycle()
-    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-    val progress by viewModel.progress.collectAsStateWithLifecycle()
+    val mediaState by viewModel.mediaState.collectAsStateWithLifecycle()
+    val duration by viewModel.duration.collectAsStateWithLifecycle()
 
     var lifecycle by remember {
         mutableStateOf(Lifecycle.Event.ON_CREATE)
@@ -522,32 +528,9 @@ fun OMovieDetailScreen(
                         modifier = Modifier.fillMaxSize(),
                         lifecycle = lifecycle,
                         exoPlayer = viewModel.exoPlayer,
-                        speedMode = speedMode,
                         fullScreen = true,
-                        isPlaying = isPlaying,
-                        progress = progress.first,
-                        duration = progress.second,
-                        onSpeedModeChange = {
-                            viewModel.changeSpeedMode()
-                        },
-                        onPreBtnClick = {
-                            viewModel.seekToPrevious()
-                        },
-                        onFastPreClick = {
-                            viewModel.seekBack()
-                        },
-                        onPlayPauseChange = {
-                            viewModel.changePlayPause()
-                        },
-                        onFastNextClick = {
-                            viewModel.seekForward()
-                        },
-                        onNextBtnClick = {
-                            viewModel.seekToNext()
-                        },
-                        onNewProgress = {
-                            viewModel.changeNewProgress(it)
-                        }
+                        mediaState = mediaState,
+                        duration = duration
                     )
                 }
 
@@ -665,32 +648,9 @@ fun OMovieDetailScreen(
                                         .aspectRatio(16 / 9f),
                                     lifecycle = lifecycle,
                                     exoPlayer = viewModel.exoPlayer,
-                                    speedMode = speedMode,
                                     fullScreen = false,
-                                    isPlaying = isPlaying,
-                                    progress = progress.first,
-                                    duration = progress.second,
-                                    onSpeedModeChange = {
-                                        viewModel.changeSpeedMode()
-                                    },
-                                    onPreBtnClick = {
-                                        viewModel.seekToPrevious()
-                                    },
-                                    onFastPreClick = {
-                                        viewModel.seekBack()
-                                    },
-                                    onPlayPauseChange = {
-                                        viewModel.changePlayPause()
-                                    },
-                                    onFastNextClick = {
-                                        viewModel.seekForward()
-                                    },
-                                    onNextBtnClick = {
-                                        viewModel.seekToNext()
-                                    },
-                                    onNewProgress = {
-                                        viewModel.changeNewProgress(it)
-                                    }
+                                    mediaState = mediaState,
+                                    duration = duration
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -786,9 +746,8 @@ fun MyMovieDetailScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playerIndex by viewModel.playerIndex.collectAsStateWithLifecycle()
-    val speedMode by viewModel.speedMode.collectAsStateWithLifecycle()
-    val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
-    val progress by viewModel.progress.collectAsStateWithLifecycle()
+    val mediaState by viewModel.mediaState.collectAsStateWithLifecycle()
+    val duration by viewModel.duration.collectAsStateWithLifecycle()
 
     var lifecycle by remember {
         mutableStateOf(Lifecycle.Event.ON_CREATE)
@@ -829,32 +788,9 @@ fun MyMovieDetailScreen(
                         modifier = Modifier.fillMaxSize(),
                         lifecycle = lifecycle,
                         exoPlayer = viewModel.exoPlayer,
-                        speedMode = speedMode,
                         fullScreen = true,
-                        isPlaying = isPlaying,
-                        progress = progress.first,
-                        duration = progress.second,
-                        onSpeedModeChange = {
-                            viewModel.changeSpeedMode()
-                        },
-                        onPreBtnClick = {
-                            viewModel.seekToPrevious()
-                        },
-                        onFastPreClick = {
-                            viewModel.seekBack()
-                        },
-                        onPlayPauseChange = {
-                            viewModel.changePlayPause()
-                        },
-                        onFastNextClick = {
-                            viewModel.seekForward()
-                        },
-                        onNextBtnClick = {
-                            viewModel.seekToNext()
-                        },
-                        onNewProgress = {
-                            viewModel.changeNewProgress(it)
-                        }
+                        mediaState = mediaState,
+                        duration = duration
                     )
                 }
 
@@ -927,32 +863,9 @@ fun MyMovieDetailScreen(
                                         .aspectRatio(16 / 9f),
                                     lifecycle = lifecycle,
                                     exoPlayer = viewModel.exoPlayer,
-                                    speedMode = speedMode,
                                     fullScreen = false,
-                                    isPlaying = isPlaying,
-                                    progress = progress.first,
-                                    duration = progress.second,
-                                    onSpeedModeChange = {
-                                        viewModel.changeSpeedMode()
-                                    },
-                                    onPreBtnClick = {
-                                        viewModel.seekToPrevious()
-                                    },
-                                    onFastPreClick = {
-                                        viewModel.seekBack()
-                                    },
-                                    onPlayPauseChange = {
-                                        viewModel.changePlayPause()
-                                    },
-                                    onFastNextClick = {
-                                        viewModel.seekForward()
-                                    },
-                                    onNextBtnClick = {
-                                        viewModel.seekToNext()
-                                    },
-                                    onNewProgress = {
-                                        viewModel.changeNewProgress(it)
-                                    }
+                                    mediaState = mediaState,
+                                    duration = duration
                                 )
 
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -1103,19 +1016,14 @@ abstract class BaseMovieDetailViewModel(
     private val exoPlayer: ExoPlayer
 ) : ViewModel(), Player.Listener {
 
-    private val _playerIndex = MutableStateFlow<Pair<OMovieDetailResponse.Episode, Int>?>(null)
-    val playerIndex: StateFlow<Pair<OMovieDetailResponse.Episode, Int>?> = _playerIndex
+    private val _playerIndex = MutableStateFlow<Triple<OMovieDetailResponse.Episode, Int, Int>?>(null)
+    val playerIndex: StateFlow<Triple<OMovieDetailResponse.Episode, Int, Int>?> = _playerIndex
 
-    private val _speedMode = MutableStateFlow(false)
-    val speedMode: StateFlow<Boolean> = _speedMode
+    private val _mediaState: MutableStateFlow<MediaState> = MutableStateFlow(MediaState.Init)
+    val mediaState: StateFlow<MediaState> = _mediaState
 
-    private val _isPlaying = MutableStateFlow(false)
-    val isPlaying: StateFlow<Boolean> = _isPlaying
-
-    private val _progress = MutableStateFlow(0L to 0L)
-    val progress: StateFlow<Pair<Long, Long>> = _progress
-
-    private var progressJob: Job? = null
+    private val _duration: MutableStateFlow<Long> = MutableStateFlow(0L)
+    val duration: StateFlow<Long> = _duration
 
     override fun onCleared() {
         super.onCleared()
@@ -1129,7 +1037,7 @@ abstract class BaseMovieDetailViewModel(
         if (playerIndex.value?.first == it) {
             exoPlayer.seekTo(idx, 0)
         } else {
-            viewModelScope.launch(Dispatchers.Main) {
+            viewModelScope.launch {
                 prepareEpisode(it, idx)
             }
         }
@@ -1144,50 +1052,26 @@ abstract class BaseMovieDetailViewModel(
         }
     }
 
-    fun seekToNext() {
-        if (exoPlayer.hasNextMediaItem()) {
-            exoPlayer.seekToNext()
+    override fun onPlaybackStateChanged(playbackState: Int) {
+        super.onPlaybackStateChanged(playbackState)
+        when (playbackState) {
+            Player.STATE_IDLE -> _mediaState.value = MediaState.Init
+            Player.STATE_READY -> {
+                _mediaState.value = MediaState.Playing(exoPlayer.isPlaying)
+                _duration.value = exoPlayer.duration
+            }
+            Player.STATE_BUFFERING -> _mediaState.value = MediaState.Loading
+            Player.STATE_ENDED -> exoPlayer.seekToNext()
         }
     }
-
-    fun seekToPrevious() {
-        if (exoPlayer.hasPreviousMediaItem()) {
-            exoPlayer.seekToPrevious()
-        }
+    override fun onIsPlayingChanged(isPlaying: Boolean) {
+        super.onIsPlayingChanged(isPlaying)
+        _mediaState.value = MediaState.Playing(isPlaying)
     }
 
-    fun seekForward() {
-        val current = exoPlayer.currentPosition
-        if (current > 0) {
-            exoPlayer.seekTo(current + 10000)
-        }
-    }
-
-    fun seekBack() {
-        val current = exoPlayer.currentPosition
-        if (current > 0) {
-            exoPlayer.seekTo(current - 10000)
-        }
-    }
-
-    fun changeNewProgress(progress: Long) {
-        _progress.value = (progress to exoPlayer.duration)
-        exoPlayer.seekTo(progress)
-    }
-
-    fun changeSpeedMode() {
-        if (speedMode.value) {
-            exoPlayer.setPlaybackSpeed(1f)
-            _speedMode.value = false
-        } else {
-            exoPlayer.setPlaybackSpeed(1.5f)
-            _speedMode.value = true
-        }
-    }
-
-    fun changePlayPause() {
-        if (exoPlayer.isPlaying) exoPlayer.pause()
-        else exoPlayer.play()
+    override fun onPlayerError(error: PlaybackException) {
+        super.onPlayerError(error)
+        _mediaState.value = MediaState.Error(error)
     }
 
     @OptIn(UnstableApi::class)
@@ -1217,32 +1101,12 @@ abstract class BaseMovieDetailViewModel(
         }
         if (!mediaItems.isNullOrEmpty()) {
             withContext(Dispatchers.Main) {
+                val maxIndex = mediaItems.size - 1
                 exoPlayer.setMediaSources(mediaItems)
                 exoPlayer.seekTo(idx, position)
-                _playerIndex.value = episode to idx
+                _playerIndex.value = Triple(episode, idx, maxIndex)
             }
         }
-    }
-
-    override fun onIsPlayingChanged(isPlaying: Boolean) {
-        _isPlaying.value = isPlaying
-        if (isPlaying) startProgressUpdate()
-        else stopProgressUpdate()
-    }
-
-    private fun startProgressUpdate() {
-        progressJob = viewModelScope.launch {
-            while (true) {
-                delay(200)
-                if (exoPlayer.isPlaying && exoPlayer.currentPosition > 0) _progress.emit(
-                    exoPlayer.currentPosition to exoPlayer.duration
-                )
-            }
-        }
-    }
-
-    private fun stopProgressUpdate() {
-        progressJob?.cancel()
     }
 }
 

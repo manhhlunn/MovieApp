@@ -66,7 +66,7 @@ android {
     }
 }
 
-val navVersion = "2.7.6"
+val navVersion = "2.7.7"
 val hiltNavVersion = "1.1.0"
 val hiltVersion = "2.49"
 val pagingVersion = "3.2.1"
@@ -84,15 +84,15 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation ("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
-    implementation("androidx.compose.material:material:1.6.0")
+    implementation("androidx.compose.material:material:1.6.1")
     implementation(platform("androidx.compose:compose-bom:2023.03.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3-android:1.2.0-rc01")
+    implementation("androidx.compose.material3:material3-android:1.2.0")
     implementation("androidx.constraintlayout:constraintlayout-compose:1.0.1")
     implementation("androidx.browser:browser:1.7.0")
-    implementation("com.google.firebase:firebase-config:21.6.0")
+    implementation("com.google.firebase:firebase-config:21.6.1")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
@@ -132,5 +132,5 @@ dependencies {
 
     implementation ("com.github.iammannan:TranslateAPI:1.1")
     implementation ("com.pierfrancescosoffritti.androidyoutubeplayer:core:12.1.0")
-    implementation("com.google.ai.client.generativeai:generativeai:0.1.2")
+    implementation("com.google.ai.client.generativeai:generativeai:0.2.0")
 }
