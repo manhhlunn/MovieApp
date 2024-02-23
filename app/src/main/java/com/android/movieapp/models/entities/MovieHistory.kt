@@ -7,13 +7,14 @@ import androidx.room.PrimaryKey
 import java.io.Serializable
 
 
+
 @Keep
 @Immutable
 @Entity
-data class MovieHistory(
+data class MediaHistory(
     @PrimaryKey
-    var slug: String,
-    var serverName: String?,
+    var id: String,
+    var serverIdx: Int,
     var index: Int,
     var position: Long
 ) : Serializable

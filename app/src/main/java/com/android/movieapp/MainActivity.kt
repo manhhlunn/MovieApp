@@ -32,12 +32,12 @@ import com.android.movieapp.models.entities.Movie
 import com.android.movieapp.models.entities.Person
 import com.android.movieapp.models.entities.Tv
 import com.android.movieapp.models.network.ImageResponse
-import com.android.movieapp.models.network.MyMovie
+import com.android.movieapp.models.network.SearchResultItem
 import com.android.movieapp.network.Api
 import com.android.movieapp.ui.detail.MovieDetailScreen
-import com.android.movieapp.ui.detail.MyMovieDetailScreen
 import com.android.movieapp.ui.detail.OMovieDetailScreen
 import com.android.movieapp.ui.detail.PersonDetailScreen
+import com.android.movieapp.ui.detail.SuperStreamDetailScreen
 import com.android.movieapp.ui.detail.TvDetailScreen
 import com.android.movieapp.ui.ext.ZoomableImage
 import com.android.movieapp.ui.home.HomeScreen
@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        wakeLock.acquire(2*60*60*1000L)
+        wakeLock.acquire(2 * 60 * 60 * 1000L)
         val windowInsetsController =
             WindowCompat.getInsetsController(window, window.decorView)
         windowInsetsController.systemBarsBehavior =
@@ -123,14 +123,14 @@ class MainActivity : ComponentActivity() {
                             }
 
                             composable(
-                                route = NavScreen.MyMovieDetailScreen.routeWithArgument,
+                                route = NavScreen.SuperStreamMovieDetailScreen.routeWithArgument,
                                 arguments = listOf(
-                                    navArgument(NavScreen.MyMovieDetailScreen.myMovie) {
-                                        type = NavScreen.MyMovieDetailScreen.MyMovieDetailType()
+                                    navArgument(NavScreen.SuperStreamMovieDetailScreen.superStreamMovie) {
+                                        type =
+                                            NavScreen.SuperStreamMovieDetailScreen.MyMovieDetailType()
                                     })
                             ) {
-
-                                MyMovieDetailScreen(
+                                SuperStreamDetailScreen(
                                     navController = navController,
                                     viewModel = hiltViewModel()
                                 )
@@ -345,35 +345,35 @@ sealed class NavScreen(val route: String) {
         }
     }
 
-    data object MyMovieDetailScreen : NavScreen("my_movie_detail_screen") {
-        const val myMovie: String = "myMovie"
+    data object SuperStreamMovieDetailScreen : NavScreen("super_stream_movie_detail_screen") {
+        const val superStreamMovie: String = "super_stream_movie"
         val routeWithArgument: String
             get() = buildString {
                 append(route)
-                append("/{$myMovie}")
+                append("/{$superStreamMovie}")
             }
 
-        fun navigateWithArgument(myMovie: MyMovie) = buildString {
-            val json = Uri.encode(Gson().toJson(myMovie))
+        fun navigateWithArgument(searchResultItem: SearchResultItem) = buildString {
+            val json = Uri.encode(Gson().toJson(searchResultItem))
             append(route)
             append("/$json")
         }
 
-        class MyMovieDetailType : NavType<MyMovie>(isNullableAllowed = false) {
+        class MyMovieDetailType : NavType<SearchResultItem>(isNullableAllowed = false) {
             @Suppress("DEPRECATION")
-            override fun get(bundle: Bundle, key: String): MyMovie? {
+            override fun get(bundle: Bundle, key: String): SearchResultItem? {
                 return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    bundle.getParcelable(key, MyMovie::class.java)
+                    bundle.getParcelable(key, SearchResultItem::class.java)
                 } else {
-                    bundle.getParcelable(key) as? MyMovie
+                    bundle.getParcelable(key) as? SearchResultItem
                 }
             }
 
-            override fun parseValue(value: String): MyMovie {
-                return Gson().fromJson(value, MyMovie::class.java)
+            override fun parseValue(value: String): SearchResultItem {
+                return Gson().fromJson(value, SearchResultItem::class.java)
             }
 
-            override fun put(bundle: Bundle, key: String, value: MyMovie) {
+            override fun put(bundle: Bundle, key: String, value: SearchResultItem) {
                 bundle.putParcelable(key, value)
             }
         }

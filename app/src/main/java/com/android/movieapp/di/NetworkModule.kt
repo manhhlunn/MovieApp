@@ -5,8 +5,8 @@ import com.android.movieapp.network.service.ConfigureService
 import com.android.movieapp.network.service.FilterService
 import com.android.movieapp.network.service.MovieService
 import com.android.movieapp.network.service.NetworkService
-import com.android.movieapp.network.service.OMovieRequest
-import com.android.movieapp.network.service.OMovieService
+import com.android.movieapp.network.service.MediaRequest
+import com.android.movieapp.network.service.MediaService
 import com.android.movieapp.network.service.PersonService
 import com.android.movieapp.network.service.PopularService
 import com.android.movieapp.network.service.SearchService
@@ -110,8 +110,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOMovieService(@RetrofitQualifier.OPMovieRetrofit retrofit: Retrofit): OMovieService {
-        return retrofit.create(OMovieService::class.java)
+    fun provideOMovieService(@RetrofitQualifier.OPMovieRetrofit retrofit: Retrofit): MediaService {
+        return retrofit.create(MediaService::class.java)
     }
 
 
@@ -159,8 +159,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOMovieRequest(oMovieService: OMovieService): OMovieRequest {
-        return OMovieRequest(oMovieService)
+    fun provideOMovieRequest(mediaService: MediaService): MediaRequest {
+        return MediaRequest(mediaService)
     }
 }
 

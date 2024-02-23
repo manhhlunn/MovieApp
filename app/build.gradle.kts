@@ -67,14 +67,14 @@ android {
 }
 
 val navVersion = "2.7.7"
-val hiltNavVersion = "1.1.0"
+val hiltNavVersion = "1.2.0"
 val hiltVersion = "2.49"
 val pagingVersion = "3.2.1"
 val roomVersion = "2.6.1"
 val retrofitVersion = "2.9.0"
 val okHttpLoggingVersion = "4.12.0"
 val gsonVersion = "2.10.1"
-val coilVersion = "2.4.0"
+val coilVersion = "2.5.0"
 val datastoreVersion = "1.0.0"
 val media3Version = "1.2.1"
 
@@ -84,7 +84,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation ("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
-    implementation("androidx.compose.material:material:1.6.1")
+    implementation("androidx.compose.material:material:1.6.2")
     implementation(platform("androidx.compose:compose-bom:2023.03.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
@@ -133,4 +133,5 @@ dependencies {
     implementation ("com.github.iammannan:TranslateAPI:1.1")
     implementation ("com.pierfrancescosoffritti.androidyoutubeplayer:core:12.1.0")
     implementation("com.google.ai.client.generativeai:generativeai:0.2.0")
+    implementation ("org.jsoup:jsoup:1.17.2")
 }

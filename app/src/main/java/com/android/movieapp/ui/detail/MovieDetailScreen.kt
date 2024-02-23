@@ -451,7 +451,7 @@ class MovieDetailViewModel @Inject constructor(
         viewModelScope.launch {
             uiState.value.movie?.let { movie ->
                 val isWatched = uiState.value.isWatched
-                if (isWatched) favoriteRepository.deleteWatchedTv(movie.id ?: return@launch)
+                if (isWatched) favoriteRepository.deleteWatchedMovie(movie.id ?: return@launch)
                 else favoriteRepository.addWatchedMovie(
                     WatchedMovie(
                         adult = movie.adult,
@@ -678,7 +678,6 @@ fun Backdrop(backdropUrl: String, modifier: Modifier) {
                 .build(),
             error = ColorPainter(MaterialTheme.colorScheme.onSecondary)
         )
-
         Image(
             painter = painter,
             contentScale = ContentScale.FillWidth,
@@ -693,8 +692,8 @@ fun Backdrop(backdropUrl: String, modifier: Modifier) {
                             val ratio = intrinsicSize.width / intrinsicSize.height
                             Modifier
                                 .aspectRatio(ratio)
-                        } ?: Modifier.aspectRatio(2f)
-                ),
+                        } ?: Modifier.aspectRatio(16 / 9f)
+                )
         )
     }
 }
@@ -922,10 +921,11 @@ fun <T : Any> SectionView(
     itemContent: @Composable (T, Int) -> Unit,
     modifier: Modifier,
     header: String? = null,
+    color: Color? = null
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         if (items.isNotEmpty()) {
-            SectionHeader(header ?: stringResource(headerResId), items.size)
+            SectionHeader(header ?: stringResource(headerResId), items.size, color)
             LazyRow(
                 modifier = Modifier.testTag(LocalContext.current.getString(headerResId)),
                 contentPadding = PaddingValues(16.dp),
@@ -946,7 +946,8 @@ fun <T : Any> SectionView(
 @Composable
 private fun SectionHeader(
     header: String,
-    count: Int
+    count: Int,
+    color: Color? = null
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -956,7 +957,7 @@ private fun SectionHeader(
     ) {
         Text(
             text = "$header ($count)",
-            color = MaterialTheme.colorScheme.primary,
+            color = color ?: MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.bodyMedium.copy(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -1224,6 +1225,7 @@ fun Poster(posterUrl: String, modifier: Modifier) {
         )
     }
 }
+
 
 enum class Action(@DrawableRes val res: Int) {
     GenerativeModel(R.drawable.ic_google),

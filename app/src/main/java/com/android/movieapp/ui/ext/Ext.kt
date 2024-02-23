@@ -25,17 +25,30 @@ import com.google.ai.client.generativeai.type.generationConfig
 import com.mannan.translateapi.Language
 import com.mannan.translateapi.TranslateAPI
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.FormBody
+import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.internal.http.HttpMethod
 import org.json.JSONArray
 import org.json.JSONObject
 import java.lang.reflect.Field
+import java.math.RoundingMode
 import java.net.URL
+import java.text.DecimalFormat
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -258,6 +271,37 @@ fun Long.makeTimeString(): String {
     }
 }
 
+fun <R> asyncCalls(
+    vararg transforms: suspend () -> R,
+) = runBlocking {
+    transforms.map {
+        async { it.invoke() }
+    }.awaitAll()
+}
+
+suspend fun <T, R> Iterable<T>.mapAsync(
+    mapper: suspend (T) -> R
+): List<R> = coroutineScope { map { async { mapper(it) } }.awaitAll() }
+
+fun String?.toValidReleaseDate(format: String = "MMMM d, yyyy"): String? {
+    if(isNullOrBlank())
+        return null
+
+    val inputFormat = SimpleDateFormat(format, Locale.US)
+    val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
+    return try {
+        val date = inputFormat.parse(this)
+        date?.let { outputFormat.format(it) }
+    } catch (e: Exception) {
+        throw Exception("Cannot parse release date of show.")
+    }
+}
+
+fun <A, B> List<A>.asyncMapIndexed(f: suspend (index: Int, A) -> B): List<B> = runBlocking {
+    mapIndexed { index, a -> async { f(index, a) } }.map { it.await() }
+}
+
 fun Any.string(): String {
     val result = StringBuilder()
     val newLine = System.getProperty("line.separator")
@@ -282,6 +326,12 @@ fun Any.string(): String {
     }
     result.append("}")
     return result.toString()
+}
+
+fun Double.roundOffDecimal(): String {
+    val df = DecimalFormat("#.#")
+    df.roundingMode = RoundingMode.CEILING
+    return df.format(this)
 }
 
 @UnstableApi

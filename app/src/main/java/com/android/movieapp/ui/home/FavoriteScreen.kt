@@ -10,10 +10,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material3.Scaffold
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,7 +35,9 @@ import com.android.movieapp.models.entities.Person
 import com.android.movieapp.models.entities.Tv
 import com.android.movieapp.models.entities.WatchedMovie
 import com.android.movieapp.models.entities.WatchedTv
+import com.android.movieapp.network.Api
 import com.android.movieapp.ui.ext.getColumnCount
+import com.android.movieapp.ui.ext.roundOffDecimal
 
 
 @Composable
@@ -186,10 +188,14 @@ fun BaseFavoriteScreen(navController: NavController, viewModel: ViewModel) {
                                     video = item.video,
                                     page = null
                                 )
-                                MovieItemView(movie = movie) {
+                                MovieItemView(
+                                    posterUrl = Api.getPosterPath(item.posterPath),
+                                    title = item.title.toString(),
+                                    bottomRight = item.voteAverage?.roundOffDecimal()
+                                ) {
                                     navController.navigate(
                                         NavScreen.MovieDetailScreen.navigateWithArgument(
-                                            it
+                                            movie
                                         )
                                     )
                                 }
@@ -213,10 +219,14 @@ fun BaseFavoriteScreen(navController: NavController, viewModel: ViewModel) {
                                     video = item.video,
                                     page = null
                                 )
-                                MovieItemView(movie = movie) {
+                                MovieItemView(
+                                    posterUrl = Api.getPosterPath(item.posterPath),
+                                    title = item.title.toString(),
+                                    bottomRight = item.voteAverage?.roundOffDecimal()
+                                ) {
                                     navController.navigate(
                                         NavScreen.MovieDetailScreen.navigateWithArgument(
-                                            it
+                                            movie
                                         )
                                     )
                                 }
@@ -240,10 +250,14 @@ fun BaseFavoriteScreen(navController: NavController, viewModel: ViewModel) {
                                     originCountry = item.originCountry,
                                     page = null
                                 )
-                                TvItemView(tv = tv) {
+                                MovieItemView(
+                                    posterUrl = Api.getPosterPath(item.posterPath),
+                                    title = item.name.toString(),
+                                    bottomRight = item.voteAverage?.roundOffDecimal()
+                                ) {
                                     navController.navigate(
                                         NavScreen.TvDetailScreen.navigateWithArgument(
-                                            it
+                                            tv
                                         )
                                     )
                                 }
@@ -267,10 +281,14 @@ fun BaseFavoriteScreen(navController: NavController, viewModel: ViewModel) {
                                     originCountry = item.originCountry,
                                     page = null
                                 )
-                                TvItemView(tv = tv) {
+                                MovieItemView(
+                                    posterUrl = Api.getPosterPath(item.posterPath),
+                                    title = item.name.toString(),
+                                    bottomRight = item.voteAverage?.roundOffDecimal()
+                                ) {
                                     navController.navigate(
                                         NavScreen.TvDetailScreen.navigateWithArgument(
-                                            it
+                                            tv
                                         )
                                     )
                                 }

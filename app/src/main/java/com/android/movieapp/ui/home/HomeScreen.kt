@@ -105,7 +105,7 @@ fun HomeScreen(navController: NavController) {
                 }
 
                 composable(route = HomeDrawerNavigation.MediaScreen.route) {
-                    OMovieScreen(navController = navController)
+                    MediaScreen(navController = navController)
                 }
             }
         }

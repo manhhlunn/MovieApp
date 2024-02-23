@@ -30,30 +30,12 @@ data class OMovie(
     val id: String?,
     @SerializedName("name")
     val name: String?,
-    @SerializedName("origin_name")
-    val originName: String?,
-    @SerializedName("type")
-    val type: String?,
     @SerializedName("thumb_url")
     val thumbUrl: String?,
-    @SerializedName("poster_url")
-    val posterUrl: String?,
-    @SerializedName("sub_docquyen")
-    val subDocquyen: Boolean?,
-    @SerializedName("chieurap")
-    val chieurap: Boolean?,
-    @SerializedName("time")
-    val time: String?,
-    @SerializedName("episode_current")
-    val episodeCurrent: String?,
     @SerializedName("quality")
     val quality: String?,
-    @SerializedName("lang")
-    val lang: String?,
     @SerializedName("slug")
-    val slug: String?,
-    @SerializedName("year")
-    val year: Int?
+    val slug: String?
 )
 
 @Keep

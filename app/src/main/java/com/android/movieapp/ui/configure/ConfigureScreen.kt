@@ -85,9 +85,9 @@ fun ConfigureScreen(
                     }
                 }
                 SearchBar(
-                    modifier = Modifier.padding(horizontal = 12.dp), hint = stringResource(
-                        if (isCountryScreen) R.string.search_region else R.string.search_language
-                    )
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    hint = stringResource(if (isCountryScreen) R.string.search_region else R.string.search_language),
+                    value = uiState.query
                 ) {
                     viewModel.onQuery(it)
                 }
@@ -225,16 +225,15 @@ fun RegionItemView(
 fun SearchBar(
     modifier: Modifier = Modifier,
     hint: String = "",
+    value: String = "",
     onSearch: (String) -> Unit = {},
 ) {
-    var searchValue by rememberSaveable { mutableStateOf("") }
     var isHintDisplayed by rememberSaveable { mutableStateOf(hint != "") }
 
     Box(modifier = modifier) {
         BasicTextField(
-            value = searchValue,
+            value = value,
             onValueChange = {
-                searchValue = it
                 onSearch.invoke(it)
             },
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -244,9 +243,9 @@ fun SearchBar(
                 .fillMaxWidth()
                 .shadow(2.dp, RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.onPrimary)
-                .padding(start = 48.dp, top = 16.dp, bottom = 16.dp, end = 24.dp)
+                .padding(start = 48.dp, top = 12.dp, bottom = 12.dp, end = 24.dp)
                 .onFocusChanged {
-                    isHintDisplayed = (!it.hasFocus && searchValue.isEmpty())
+                    isHintDisplayed = (!it.hasFocus && value.isEmpty())
                 },
             textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.primary)
         )
@@ -265,8 +264,8 @@ fun SearchBar(
                 color = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.padding(
                     start = 48.dp,
-                    top = 16.dp,
-                    bottom = 16.dp,
+                    top = 12.dp,
+                    bottom = 12.dp,
                     end = 24.dp
                 )
             )

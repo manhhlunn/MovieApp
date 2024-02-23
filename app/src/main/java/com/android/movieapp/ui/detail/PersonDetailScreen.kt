@@ -13,14 +13,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,10 +57,10 @@ import com.android.movieapp.ui.ext.ifNull
 import com.android.movieapp.ui.ext.ifNullOrEmpty
 import com.android.movieapp.ui.ext.makeWikiRequest
 import com.android.movieapp.ui.ext.openChromeCustomTab
+import com.android.movieapp.ui.ext.roundOffDecimal
 import com.android.movieapp.ui.ext.springAnimation
 import com.android.movieapp.ui.ext.translateToVi
 import com.android.movieapp.ui.home.MovieItemView
-import com.android.movieapp.ui.home.TvItemView
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -203,10 +203,15 @@ fun PersonDetailScreen(
                     items = uiState.movies,
                     headerResId = R.string.movie_title,
                     itemContent = { item, _ ->
-                        MovieItemView(modifier = Modifier.width(140.dp), item) {
+                        MovieItemView(
+                            modifier = Modifier.width(140.dp),
+                            posterUrl = Api.getPosterPath(item.posterPath),
+                            title = item.title.toString(),
+                            bottomRight = item.voteAverage?.roundOffDecimal()
+                        ) {
                             navController.navigate(
                                 NavScreen.MovieDetailScreen.navigateWithArgument(
-                                    it
+                                    item
                                 )
                             )
                         }
@@ -221,8 +226,13 @@ fun PersonDetailScreen(
                     items = uiState.tvs,
                     headerResId = R.string.tv_title,
                     itemContent = { item, _ ->
-                        TvItemView(modifier = Modifier.width(140.dp), item) {
-                            navController.navigate(NavScreen.TvDetailScreen.navigateWithArgument(it))
+                        MovieItemView(
+                            modifier = Modifier.width(140.dp),
+                            posterUrl = Api.getPosterPath(item.posterPath),
+                            title = item.name.toString(),
+                            bottomRight = item.voteAverage?.roundOffDecimal()
+                        ) {
+                            navController.navigate(NavScreen.TvDetailScreen.navigateWithArgument(item))
                         }
                     },
                     modifier = Modifier.constrainAs(tvs) {

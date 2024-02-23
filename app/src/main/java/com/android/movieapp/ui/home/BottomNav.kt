@@ -144,21 +144,15 @@ enum class BottomNavigationScreen(
         TypeScreen.FILTER
     ),
 
-    NewMovieMediaScreen(
-        "audio_movie", R.drawable.ic_home, R.string.home_title,
+    OMovieMediaScreen(
+        "o_movie", R.drawable.ic_home, R.string.o_movie,
         TypeScreen.MEDIA
     ),
 
-    MovieMediaSearchScreen(
-        "audio_search_movie", R.drawable.ic_filter, R.string.search_movie,
+    SuperStreamMovieMediaScreen(
+        "super_stream_movie", R.drawable.movie_ic, R.string.super_stream_movie,
         TypeScreen.MEDIA
-    ),
-
-    MyMovieScreen(
-    "my_movie", R.drawable.movie_ic, R.string.movie_title,
-    TypeScreen.MEDIA
     )
-
 }
 
 enum class TypeScreen {

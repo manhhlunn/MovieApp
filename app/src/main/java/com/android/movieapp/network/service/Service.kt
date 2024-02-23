@@ -1,14 +1,17 @@
 package com.android.movieapp.network.service
 
-import android.util.Log
 import com.android.movieapp.models.network.CustomException
 import com.android.movieapp.models.network.NetworkResponse
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import okhttp3.ResponseBody
 import retrofit2.HttpException
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.FieldMap
+import retrofit2.http.FormUrlEncoded
 import retrofit2.http.GET
+import retrofit2.http.HeaderMap
 import retrofit2.http.POST
 import retrofit2.http.QueryMap
 import retrofit2.http.Url
@@ -30,16 +33,29 @@ interface NetworkService {
     ): Response<T>
 }
 
-interface OMovieService {
+interface MediaService {
     @GET
     suspend fun <T> get(
         @Url url: String,
         @QueryMap parameters: Parameters
     ): Response<T>
+
+    @GET
+    suspend fun getResponse(
+        @Url url: String
+    ): Response<ResponseBody>
+
+    @POST
+    @FormUrlEncoded
+    suspend fun post(
+        @Url url: String,
+        @FieldMap parameters: Map<String, String>,
+        @HeaderMap headers: Map<String, String>
+    ): Response<ResponseBody>
 }
 
 
-suspend inline fun <reified T> OMovieService.request(
+suspend inline fun <reified T> MediaService.request(
     url: String,
     parameters: Parameters = hashMapOf()
 ): NetworkResponse<T> {
@@ -56,14 +72,11 @@ suspend inline fun <reified T> OMovieService.request(
             NetworkResponse.Success(body)
         } else {
             val ex = HttpException(response)
-            Log.e("AAA", "HttpException:$ex")
             NetworkResponse.Error(CustomException.RequestFail(ex))
         }
     } catch (e: HttpException) {
-        Log.e("AAA", "HttpException:$e")
         NetworkResponse.Error(CustomException.RequestFail(e))
     } catch (e: Exception) {
-        Log.e("AAA", "Exception:$e")
         NetworkResponse.Error(CustomException.Normal(e))
     }
 }

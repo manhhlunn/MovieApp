@@ -2,7 +2,6 @@ package com.android.movieapp.ds
 
 import android.content.Context
 import androidx.annotation.WorkerThread
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -13,7 +12,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -56,18 +54,6 @@ class DataStoreManager @Inject constructor(@ApplicationContext appContext: Conte
                 is Long -> it[longPreferencesKey(name)] = value
                 else -> throw IllegalArgumentException("Not support data type ${T::class.java}")
             }
-        }
-    }
-
-    inline fun <reified T> getFlow(key: Preferences.Key<T>, default: T) =
-        dataStore.data.map { (it[key] ?: default) }
-
-    suspend inline fun <reified T> setSuspend(
-        key: Preferences.Key<T>,
-        value: T,
-    ) {
-        dataStore.edit {
-            it[key] = value
         }
     }
 }

@@ -48,4 +48,6 @@
     <string name="seasons">Seasons</string>
     <string name="media">Media</string>
     <string name="server">Server</string>
+    <string name="o_movie">O Movie</string>
+    <string name="super_stream_movie">Super stream movie</string>
 </resources>

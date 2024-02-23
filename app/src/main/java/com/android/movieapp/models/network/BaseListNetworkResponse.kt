@@ -12,8 +12,6 @@ data class BaseListNetworkResponse<T : Any>(
     val page: Int,
     @SerializedName("results")
     val results: List<T>,
-    @SerializedName("total_results")
-    val totalResults: Int,
     @SerializedName("total_pages")
     val totalPages: Int
 )

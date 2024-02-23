@@ -51,10 +51,12 @@ import com.android.movieapp.R
 import com.android.movieapp.models.entities.Movie
 import com.android.movieapp.models.entities.Tv
 import com.android.movieapp.models.network.GenreItemResponse
+import com.android.movieapp.network.Api
 import com.android.movieapp.network.service.SortValue
 import com.android.movieapp.ui.ext.DropdownItem
 import com.android.movieapp.ui.ext.FilterRow
 import com.android.movieapp.ui.ext.getColumnCount
+import com.android.movieapp.ui.ext.roundOffDecimal
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
@@ -162,18 +164,26 @@ fun BaseFilterScreen(navController: NavController, viewModel: BaseFilterViewMode
                 items(values.itemCount) { index ->
                     values[index]?.let { item ->
                         when (item) {
-                            is Movie -> MovieItemView(movie = item) {
+                            is Movie -> MovieItemView(
+                                posterUrl = Api.getPosterPath(item.posterPath),
+                                title = item.title.toString(),
+                                bottomRight = item.voteAverage?.roundOffDecimal()
+                            ) {
                                 navController.navigate(
                                     NavScreen.MovieDetailScreen.navigateWithArgument(
-                                        it
+                                        item
                                     )
                                 )
                             }
 
-                            is Tv -> TvItemView(tv = item) {
+                            is Tv -> MovieItemView(
+                                posterUrl = Api.getPosterPath(item.posterPath),
+                                title = item.name.toString(),
+                                bottomRight = item.voteAverage?.roundOffDecimal()
+                            ) {
                                 navController.navigate(
                                     NavScreen.TvDetailScreen.navigateWithArgument(
-                                        it
+                                        item
                                     )
                                 )
                             }

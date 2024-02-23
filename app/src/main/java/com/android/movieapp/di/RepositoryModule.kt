@@ -16,7 +16,7 @@ import com.android.movieapp.ds.DataStoreManager
 import com.android.movieapp.network.service.ConfigureService
 import com.android.movieapp.network.service.FilterService
 import com.android.movieapp.network.service.MovieService
-import com.android.movieapp.network.service.OMovieRequest
+import com.android.movieapp.network.service.MediaRequest
 import com.android.movieapp.network.service.PersonService
 import com.android.movieapp.network.service.PopularService
 import com.android.movieapp.network.service.SearchService
@@ -25,7 +25,7 @@ import com.android.movieapp.repository.ConfigureRepository
 import com.android.movieapp.repository.FavoriteRepository
 import com.android.movieapp.repository.FilterRepository
 import com.android.movieapp.repository.MovieRepository
-import com.android.movieapp.repository.OMovieRepository
+import com.android.movieapp.repository.MediaRepository
 import com.android.movieapp.repository.PersonRepository
 import com.android.movieapp.repository.PopularRepository
 import com.android.movieapp.repository.TvRepository
@@ -123,10 +123,10 @@ object RepositoryModule {
     @Provides
     @ViewModelScoped
     fun provideOMovieRepository(
-        oMovieRequest: OMovieRequest,
+        mediaRequest: MediaRequest,
         historyDao: HistoryDao
-    ): OMovieRepository {
-        return OMovieRepository(oMovieRequest, historyDao)
+    ): MediaRepository {
+        return MediaRepository(mediaRequest, historyDao)
     }
 
     @UnstableApi

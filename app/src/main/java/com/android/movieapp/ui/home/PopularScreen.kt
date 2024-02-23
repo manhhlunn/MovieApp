@@ -13,12 +13,14 @@ import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
@@ -33,11 +35,14 @@ import com.android.movieapp.R
 import com.android.movieapp.models.entities.Movie
 import com.android.movieapp.models.entities.Person
 import com.android.movieapp.models.entities.Tv
+import com.android.movieapp.network.Api
 import com.android.movieapp.ui.configure.SearchBar
 import com.android.movieapp.ui.ext.getColumnCount
+import com.android.movieapp.ui.ext.roundOffDecimal
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onEach
 
@@ -116,9 +121,13 @@ fun BaseHomeScreen(navController: NavController, viewModel: BaseSearchViewModel<
                 values.first.refresh()
             })
 
+    val query by viewModel.query.collectAsStateWithLifecycle()
+
     Column {
         SearchBar(
-            modifier = Modifier.padding(horizontal = 12.dp), hint = values.second
+            modifier = Modifier.padding(horizontal = 12.dp),
+            hint = values.second,
+            value = query ?: "",
         ) {
             viewModel.updateSearchQuery(it)
         }
@@ -136,18 +145,26 @@ fun BaseHomeScreen(navController: NavController, viewModel: BaseSearchViewModel<
                 items(values.first.itemCount) { index ->
                     values.first[index]?.let { item ->
                         when (item) {
-                            is Movie -> MovieItemView(movie = item) {
+                            is Movie -> MovieItemView(
+                                posterUrl = Api.getPosterPath(item.posterPath),
+                                title = item.title.toString(),
+                                bottomRight = item.voteAverage?.roundOffDecimal()
+                            ) {
                                 navController.navigate(
                                     NavScreen.MovieDetailScreen.navigateWithArgument(
-                                        it
+                                        item
                                     )
                                 )
                             }
 
-                            is Tv -> TvItemView(tv = item) {
+                            is Tv -> MovieItemView(
+                                posterUrl = Api.getPosterPath(item.posterPath),
+                                title = item.name.toString(),
+                                bottomRight = item.voteAverage?.roundOffDecimal()
+                            ) {
                                 navController.navigate(
                                     NavScreen.TvDetailScreen.navigateWithArgument(
-                                        it
+                                        item
                                     )
                                 )
                             }
@@ -174,13 +191,13 @@ fun BaseHomeScreen(navController: NavController, viewModel: BaseSearchViewModel<
 
 abstract class BaseSearchViewModel<T : Any> : ViewModel() {
 
+    var query = MutableStateFlow<String?>(null)
     abstract val invoke: (String) -> Flow<PagingData<T>>
-    private var query: String? = null
     private val searchQueryFlow = MutableSharedFlow<String>(replay = 1)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val _values = searchQueryFlow
-        .onEach { query = it }
+        .onEach { query.value = it }
         .flatMapLatest {
             invoke(it)
         }
@@ -188,7 +205,7 @@ abstract class BaseSearchViewModel<T : Any> : ViewModel() {
     val values = _values.cachedIn(viewModelScope)
 
     fun updateSearchQuery(newQuery: String) {
-        if (newQuery != query) {
+        if (newQuery != query.value) {
             searchQueryFlow.tryEmit(newQuery)
         }
     }

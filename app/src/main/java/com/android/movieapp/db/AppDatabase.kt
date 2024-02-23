@@ -9,8 +9,8 @@ import com.android.movieapp.db.converters.StringListConverter
 import com.android.movieapp.models.entities.FavoriteMovie
 import com.android.movieapp.models.entities.FavoritePerson
 import com.android.movieapp.models.entities.FavoriteTv
+import com.android.movieapp.models.entities.MediaHistory
 import com.android.movieapp.models.entities.Movie
-import com.android.movieapp.models.entities.MovieHistory
 import com.android.movieapp.models.entities.Person
 import com.android.movieapp.models.entities.RemoteKeyMovie
 import com.android.movieapp.models.entities.RemoteKeyPerson
@@ -27,10 +27,9 @@ import com.android.movieapp.models.network.LanguageItemResponse
         (WatchedMovie::class), (WatchedTv::class),
         (RemoteKeyMovie::class), (RemoteKeyTv::class), (RemoteKeyPerson::class),
         (LanguageItemResponse::class), (CountryItemResponse::class),
-        (MovieHistory::class)
+        (MediaHistory::class)
     ],
-    version = 2,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    version = 1,
     exportSchema = true
 )
 @TypeConverters(

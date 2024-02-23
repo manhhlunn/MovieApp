@@ -1,11 +1,13 @@
 package com.android.movieapp.ui.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,7 +23,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.paging.PagingData
 import com.android.movieapp.models.entities.Movie
-import com.android.movieapp.network.Api
 import com.android.movieapp.repository.FavoriteRepository
 import com.android.movieapp.ui.ext.ProgressiveGlowingImage
 import com.android.movieapp.ui.theme.AppYellow
@@ -35,38 +36,42 @@ import javax.inject.Inject
 @Composable
 fun MovieItemView(
     modifier: Modifier = Modifier,
-    movie: Movie,
-    onExpandDetails: (Movie) -> Unit
+    posterUrl: String,
+    bottomRight: String?,
+    title: String,
+    onExpandDetails: () -> Unit
 ) {
     Column(modifier = modifier
         .padding(4.dp)
         .clickable {
-            onExpandDetails.invoke(movie)
+            onExpandDetails.invoke()
         }) {
-        val posterUrl = Api.getPosterPath(movie.posterPath)
+
         Box {
             ProgressiveGlowingImage(
                 url = posterUrl,
                 glow = true
             )
-            Text(
-                text = movie.voteAverage.toString(),
+            if (!bottomRight.isNullOrEmpty()) Text(
+                text = bottomRight,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     shadow = Shadow(
                         color = Color.Black
                     )
                 ),
                 fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 color = AppYellow,
                 modifier = Modifier
-                    .padding(6.dp)
+                    .padding(4.dp)
+                    .background(Color.White, shape = RoundedCornerShape(8.dp))
+                    .padding(horizontal = 4.dp, vertical = 0.dp)
                     .align(Alignment.BottomEnd)
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = movie.title ?: "",
+            text = title,
             style = MaterialTheme.typography.bodyMedium.copy(
                 shadow = Shadow(
                     color = Color.Black,
@@ -115,7 +120,8 @@ class FilterMovieViewModel @Inject constructor(private val filterUseCase: Filter
             it.originLanguage.value,
             it.withGenres,
             it.years,
-            it.includes.firstOrNull { include -> include.type == Includes.FAVORITE }?.value ?: false,
+            it.includes.firstOrNull { include -> include.type == Includes.FAVORITE }?.value
+                ?: false,
             it.includes.firstOrNull { include -> include.type == Includes.WATCHED }?.value ?: false,
         )
     }

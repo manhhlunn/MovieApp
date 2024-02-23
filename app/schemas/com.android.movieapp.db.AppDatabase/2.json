@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "bac56101c1d75dae3f3f9ca555499696",
+    "identityHash": "74eab71d5b9121bbbd3b9be2d433ac89",
     "entities": [
       {
         "tableName": "Movie",
@@ -919,20 +919,20 @@
         "foreignKeys": []
       },
       {
-        "tableName": "MovieHistory",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`slug` TEXT NOT NULL, `serverName` TEXT, `index` INTEGER NOT NULL, `position` INTEGER NOT NULL, PRIMARY KEY(`slug`))",
+        "tableName": "MediaHistory",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `serverIdx` INTEGER NOT NULL, `index` INTEGER NOT NULL, `position` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
-            "fieldPath": "slug",
-            "columnName": "slug",
+            "fieldPath": "id",
+            "columnName": "id",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "serverName",
-            "columnName": "serverName",
-            "affinity": "TEXT",
-            "notNull": false
+            "fieldPath": "serverIdx",
+            "columnName": "serverIdx",
+            "affinity": "INTEGER",
+            "notNull": true
           },
           {
             "fieldPath": "index",
@@ -950,7 +950,7 @@
         "primaryKey": {
           "autoGenerate": false,
           "columnNames": [
-            "slug"
+            "id"
           ]
         },
         "indices": [],
@@ -960,7 +960,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'bac56101c1d75dae3f3f9ca555499696')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '74eab71d5b9121bbbd3b9be2d433ac89')"
     ]
   }
 }

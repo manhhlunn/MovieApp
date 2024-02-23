@@ -20,13 +20,6 @@ enum class MediaType(val value: String, val displayName: String) {
     }
 }
 
-enum class SortTime(
-    val value: String, val displayName: String) {
-    ThoiGianCapNhat("modified.time", "Thời gian cập nhật"),
-    ThoiGianDang("_id", "Thời gian đăng"),
-    NamSanXuat("year", "Năm sản xuất");
-}
-
 enum class FilterCategory(val value: String, val displayName: String) {
     HanhDong("hanh-dong", "Hành động"),
     TinhCam("tinh-cam", "Tình cảm"),
