@@ -20,8 +20,10 @@
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
         <activity
+            android:supportsPictureInPicture="true"
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:theme="@style/Theme.MovieApp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

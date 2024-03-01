@@ -64,13 +64,15 @@ fun HomeScreen(navController: NavController) {
             navController = navControllerHome
         )
     }, drawerState = drawerState) {
-        Scaffold(topBar = {
-            TopAppBar(onSettingsClicked = {
-                coroutineScope.launch {
-                    drawerState.open()
-                }
-            })
-        }) {
+        Scaffold(
+            topBar = {
+                TopAppBar(onSettingsClicked = {
+                    coroutineScope.launch {
+                        drawerState.open()
+                    }
+                })
+            }
+        ) {
             NavHost(
                 modifier = Modifier.padding(it),
                 navController = navControllerHome,

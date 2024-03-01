@@ -4,7 +4,11 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.net.Uri
+import android.os.Build
+import android.os.Handler
 import android.util.Log
+import android.view.View
+import androidx.annotation.OptIn
 import androidx.browser.customtabs.CustomTabColorSchemeParams
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.runtime.Composable
@@ -14,12 +18,27 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
+import androidx.media3.exoplayer.metadata.MetadataOutput
+import androidx.media3.exoplayer.text.TextOutput
+import androidx.media3.exoplayer.text.TextRenderer
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.video.VideoRendererEventListener
 import com.android.movieapp.network.Api
+import com.android.movieapp.network.service.SSLTrustManager
+import com.android.movieapp.ui.media.renderer.CustomTextRenderer
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.generationConfig
 import com.mannan.translateapi.Language
@@ -32,24 +51,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import okhttp3.Call
-import okhttp3.FormBody
-import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.internal.http.HttpMethod
 import org.json.JSONArray
 import org.json.JSONObject
 import java.lang.reflect.Field
 import java.math.RoundingMode
 import java.net.URL
+import java.security.SecureRandom
 import java.text.DecimalFormat
-import java.text.SimpleDateFormat
-import java.util.Locale
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -271,32 +286,9 @@ fun Long.makeTimeString(): String {
     }
 }
 
-fun <R> asyncCalls(
-    vararg transforms: suspend () -> R,
-) = runBlocking {
-    transforms.map {
-        async { it.invoke() }
-    }.awaitAll()
-}
-
 suspend fun <T, R> Iterable<T>.mapAsync(
     mapper: suspend (T) -> R
 ): List<R> = coroutineScope { map { async { mapper(it) } }.awaitAll() }
-
-fun String?.toValidReleaseDate(format: String = "MMMM d, yyyy"): String? {
-    if(isNullOrBlank())
-        return null
-
-    val inputFormat = SimpleDateFormat(format, Locale.US)
-    val outputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-
-    return try {
-        val date = inputFormat.parse(this)
-        date?.let { outputFormat.format(it) }
-    } catch (e: Exception) {
-        throw Exception("Cannot parse release date of show.")
-    }
-}
 
 fun <A, B> List<A>.asyncMapIndexed(f: suspend (index: Int, A) -> B): List<B> = runBlocking {
     mapIndexed { index, a -> async { f(index, a) } }.map { it.await() }
@@ -344,3 +336,67 @@ fun ExoPlayer.isEnableSelect(type: Int): Boolean {
     }
     return count > 0
 }
+
+@OptIn(UnstableApi::class)
+internal fun Context.getRenderers(
+    eventHandler: Handler,
+    videoRendererEventListener: VideoRendererEventListener,
+    audioRendererEventListener: AudioRendererEventListener,
+    textRendererOutput: TextOutput,
+    metadataRendererOutput: MetadataOutput,
+    subtitleOffset: Long,
+    onTextRendererChange: (CustomTextRenderer) -> Unit,
+): Array<Renderer> {
+    return DefaultRenderersFactory(this)
+        .createRenderers(
+            eventHandler,
+            videoRendererEventListener,
+            audioRendererEventListener,
+            textRendererOutput,
+            metadataRendererOutput
+        ).map {
+            if (it is TextRenderer) {
+                CustomTextRenderer(
+                    offset = subtitleOffset,
+                    output = textRendererOutput,
+                    outputLooper = eventHandler.looper,
+                ).also(onTextRendererChange)
+            } else it
+        }.toTypedArray()
+}
+
+@OptIn(UnstableApi::class)
+fun Context.buildExoplayer(): ExoPlayer.Builder {
+    val loadControl = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(32 * 1024, 64 * 1024, 10 * 1024, 10 * 1024)
+        .build()
+
+    return ExoPlayer.Builder(this).apply {
+        setTrackSelector(DefaultTrackSelector(this@buildExoplayer).apply {
+            setParameters(
+                buildUponParameters()
+                    .setPreferredTextLanguage("vi")
+                    .setForceHighestSupportedBitrate(true)
+            )
+        })
+        setHandleAudioBecomingNoisy(true)
+        setLoadControl(loadControl)
+        setSeekBackIncrementMs(10000L)
+        setSeekForwardIncrementMs(10000L)
+        setWakeMode(C.WAKE_MODE_NETWORK)
+    }
+}
+
+fun OkHttpClient.Builder.ignoreAllSSLErrors(): OkHttpClient.Builder {
+    val naiveTrustManager = SSLTrustManager()
+
+    val insecureSocketFactory = SSLContext.getInstance("SSL").apply {
+        val trustAllCerts = arrayOf<TrustManager>(naiveTrustManager)
+        init(null, trustAllCerts, SecureRandom())
+    }.socketFactory
+
+    sslSocketFactory(insecureSocketFactory, naiveTrustManager)
+    hostnameVerifier { _, _ -> true }
+    return this
+}
+

@@ -5,6 +5,7 @@ import android.content.pm.ActivityInfo
 import android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
 import android.content.res.Configuration
 import android.net.Uri
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.MainThread
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,7 +42,6 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -58,14 +59,12 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -79,6 +78,8 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -88,9 +89,9 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
-import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.DefaultTrackNameProvider
 import androidx.media3.ui.PlayerView
-import androidx.media3.ui.TrackSelectionDialogBuilder
+import androidx.media3.ui.TrackNameProvider
 import androidx.navigation.NavController
 import com.android.movieapp.NavScreen
 import com.android.movieapp.R
@@ -98,20 +99,24 @@ import com.android.movieapp.models.entities.MediaHistory
 import com.android.movieapp.models.network.Category
 import com.android.movieapp.models.network.Episode
 import com.android.movieapp.models.network.NetworkResponse
-import com.android.movieapp.models.network.OMovieDetailResponse
+import com.android.movieapp.models.network.OMovieDetail
 import com.android.movieapp.models.network.SearchResultItem
 import com.android.movieapp.models.network.SourceLink
 import com.android.movieapp.models.network.Subtitle
 import com.android.movieapp.models.network.SuperStreamResponse
 import com.android.movieapp.repository.MediaRepository
-import com.android.movieapp.ui.ext.OnLifecycleEvent
 import com.android.movieapp.ui.ext.ProgressiveGlowingImage
+import com.android.movieapp.ui.ext.buildExoplayer
+import com.android.movieapp.ui.ext.getRenderers
 import com.android.movieapp.ui.ext.isEnableSelect
 import com.android.movieapp.ui.ext.makeTimeString
 import com.android.movieapp.ui.ext.openChromeCustomTab
+import com.android.movieapp.ui.ext.roundOffDecimal
 import com.android.movieapp.ui.ext.setScreenOrientation
+import com.android.movieapp.ui.media.renderer.CustomTextRenderer
 import com.android.movieapp.ui.media.util.SSMediaType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -120,8 +125,10 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-typealias BottomSheetCallback = (Int) -> Unit
-typealias BottomSheetValues = Triple<Int, List<String>, BottomSheetCallback>
+typealias TrackValue = Triple<Int, Int, String>
+typealias BottomSheetCallback = (TrackValue) -> Unit
+typealias BottomSheetValues = List<TrackValue>
+typealias BottomSheetState = Triple<TrackValue?, BottomSheetValues, BottomSheetCallback>
 
 sealed class MediaState {
     data object Init : MediaState()
@@ -130,64 +137,94 @@ sealed class MediaState {
     data class Playing(val isPlay: Boolean) : MediaState()
 }
 
+enum class ResizeMode(val value: Int) {
+    RESIZE_MODE_FIT(0),
+    RESIZE_MODE_FIXED_WIDTH(1),
+    RESIZE_MODE_FIXED_HEIGHT(2),
+    RESIZE_MODE_FILL(3),
+    RESIZE_MODE_ZOOM(4);
+
+    @Composable
+    fun getStringValue(): String {
+        return when (this) {
+            RESIZE_MODE_FIT -> stringResource(R.string.fit)
+            RESIZE_MODE_FIXED_WIDTH -> stringResource(R.string.fixed_width)
+            RESIZE_MODE_FIXED_HEIGHT -> stringResource(R.string.fixed_height)
+            RESIZE_MODE_FILL -> stringResource(R.string.fill)
+            RESIZE_MODE_ZOOM -> stringResource(R.string.zoom)
+        }
+    }
+
+    fun nextMode(): ResizeMode {
+        return when (this) {
+            RESIZE_MODE_FIT -> RESIZE_MODE_FIXED_WIDTH
+            RESIZE_MODE_FIXED_WIDTH -> RESIZE_MODE_FIXED_HEIGHT
+            RESIZE_MODE_FIXED_HEIGHT -> RESIZE_MODE_FILL
+            RESIZE_MODE_FILL -> RESIZE_MODE_ZOOM
+            RESIZE_MODE_ZOOM -> RESIZE_MODE_FIT
+        }
+    }
+
+    fun prevMode(): ResizeMode {
+        return when (this) {
+            RESIZE_MODE_FIT -> RESIZE_MODE_ZOOM
+            RESIZE_MODE_FIXED_WIDTH -> RESIZE_MODE_FIT
+            RESIZE_MODE_FIXED_HEIGHT -> RESIZE_MODE_FIXED_WIDTH
+            RESIZE_MODE_FILL -> RESIZE_MODE_FIXED_HEIGHT
+            RESIZE_MODE_ZOOM -> RESIZE_MODE_FILL
+        }
+    }
+}
+
 @OptIn(UnstableApi::class)
 @Composable
 fun CustomPlayerView(
     context: Context,
     modifier: Modifier,
-    lifecycle: Lifecycle.Event,
     exoPlayer: ExoPlayer,
     fullScreen: Boolean,
     mediaState: MediaState,
     duration: Long,
     isMultipleServer: Boolean,
-    onServerChange: () -> Unit
+    subtitleOffset: Long,
+    onServerChange: () -> Unit,
+    onQualityChange: () -> Unit,
+    onSubtitleChange: () -> Unit,
+    onAudioChange: () -> Unit,
+    onNextEpisode: () -> Unit,
+    onNewSubtitleOffset: (Long) -> Unit
 ) {
     var currentPosition by remember { mutableLongStateOf(0) }
     var controllerShowTime by remember { mutableLongStateOf(2000L) }
 
-    var zoomMode by remember { mutableStateOf(false) }
-    var speedMode by remember { mutableStateOf(false) }
-
+    var isSettingsEnabled by remember { mutableStateOf(false) }
+    var resizeMode by remember { mutableStateOf(ResizeMode.RESIZE_MODE_FIT) }
+    var speed by remember { mutableFloatStateOf(1f) }
     var scale by remember { mutableFloatStateOf(1f) }
 
     val isShowController =
-        controllerShowTime > 0 || controllerShowTime == -1L || (mediaState as? MediaState.Playing)?.isPlay != true
+        controllerShowTime > 0 || controllerShowTime == -1L || (mediaState as? MediaState.Playing)?.isPlay != true || isSettingsEnabled
 
     LaunchedEffect(key1 = controllerShowTime, key2 = isShowController) {
         if (controllerShowTime > 0) {
             delay(100L)
             controllerShowTime -= 100L
         }
-        if (exoPlayer.currentPosition > 0 && controllerShowTime != -1L) currentPosition =
-            exoPlayer.currentPosition
+        val exoPlayerPosition = exoPlayer.currentPosition
+        if (exoPlayerPosition > 0 && controllerShowTime != -1L) currentPosition = exoPlayerPosition
     }
 
     Box {
         AndroidView(
             factory = {
                 PlayerView(it).apply {
-                    player = exoPlayer
-                    useController = false
-                    resizeMode =
-                        if (zoomMode) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    this.player = exoPlayer
+                    this.useController = false
+                    this.resizeMode = resizeMode.value
                 }
             },
             update = {
-                it.resizeMode =
-                    if (zoomMode) AspectRatioFrameLayout.RESIZE_MODE_ZOOM else AspectRatioFrameLayout.RESIZE_MODE_FIT
-                when (lifecycle) {
-                    Lifecycle.Event.ON_PAUSE -> {
-                        it.onPause()
-                        it.player?.pause()
-                    }
-
-                    Lifecycle.Event.ON_RESUME -> {
-                        it.onResume()
-                    }
-
-                    else -> Unit
-                }
+                it.resizeMode = resizeMode.value
             },
             modifier = modifier
                 .background(Color.Black)
@@ -211,61 +248,186 @@ fun CustomPlayerView(
             if (fullScreen && isShowController) Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
+                    .then(
+                        if (isSettingsEnabled) Modifier
+                            .fillMaxHeight()
+                            .background(Color(0x33000000)) else Modifier
+                    )
             ) {
                 IconButton(
                     onClick = {
-                        controllerShowTime = 2000L
-                        zoomMode = !zoomMode
+                        isSettingsEnabled = !isSettingsEnabled
                     }
                 ) {
                     Icon(
-                        painterResource(id = if (zoomMode) R.drawable.baseline_width_full_24 else R.drawable.baseline_width_normal_24),
-                        contentDescription = "Full width",
+                        painterResource(id = R.drawable.baseline_settings_24),
+                        contentDescription = "Settings",
                         tint = Color.White
                     )
                 }
 
-                IconButton(
-                    onClick = {
-                        controllerShowTime = 2000L
-                        scale -= 0.02f
+                if (isSettingsEnabled) Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = {
+                            scale -= 0.02f
+                        }
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.baseline_arrow_back_ios_24),
+                            contentDescription = "Zoom -",
+                            tint = Color.White
+                        )
                     }
-                ) {
-                    Icon(
-                        painterResource(id = R.drawable.baseline_zoom_out_24),
-                        contentDescription = "Zoom out",
-                        tint = Color.White
+
+                    Text(
+                        text = stringResource(
+                            R.string.zoom_percent,
+                            (scale * 100.0).roundOffDecimal()
+                        ),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        color = Color.White
                     )
+
+                    IconButton(
+                        onClick = {
+                            scale += 0.02f
+                        }
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.baseline_arrow_forward_ios_24),
+                            contentDescription = "Zoom +",
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                if (isSettingsEnabled) Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = {
+                            resizeMode = resizeMode.prevMode()
+                        }
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.baseline_arrow_back_ios_24),
+                            contentDescription = "ResizeMode -",
+                            tint = Color.White
+                        )
+                    }
+
+                    Text(
+                        text = resizeMode.getStringValue(),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        color = Color.White
+                    )
+
+                    IconButton(
+                        onClick = {
+                            resizeMode = resizeMode.nextMode()
+                        }
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.baseline_arrow_forward_ios_24),
+                            contentDescription = "ResizeMode +",
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                if (isSettingsEnabled) Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = {
+                            speed -= 0.1f
+                            exoPlayer.setPlaybackSpeed(speed)
+                        }
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.baseline_arrow_back_ios_24),
+                            contentDescription = "Speed -",
+                            tint = Color.White
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(R.string.speed_x, speed.toDouble().roundOffDecimal()),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        color = Color.White
+                    )
+
+                    IconButton(
+                        onClick = {
+                            speed += 0.1f
+                            exoPlayer.setPlaybackSpeed(speed)
+                        }
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.baseline_arrow_forward_ios_24),
+                            contentDescription = "Speed +",
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                if (isSettingsEnabled) Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        onClick = {
+                            onNewSubtitleOffset.invoke(subtitleOffset - 250L)
+                        }
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.baseline_arrow_back_ios_24),
+                            contentDescription = "Offset -",
+                            tint = Color.White
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(
+                            R.string.offset_s,
+                            (subtitleOffset / 1000.0).roundOffDecimal()
+                        ),
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        color = Color.White
+                    )
+
+                    IconButton(
+                        onClick = {
+                            onNewSubtitleOffset.invoke(subtitleOffset + 250L)
+                        }
+                    ) {
+                        Icon(
+                            painterResource(id = R.drawable.baseline_arrow_forward_ios_24),
+                            contentDescription = "Offset +",
+                            tint = Color.White
+                        )
+                    }
                 }
             }
 
-            if (fullScreen && isShowController) Column(
+            if (fullScreen && isShowController) Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
             ) {
                 IconButton(onClick = {
                     controllerShowTime = 2000L
-                    exoPlayer.setPlaybackSpeed(if (speedMode) 1f else 1.5f)
-                    speedMode = !speedMode
+                    onNextEpisode.invoke()
                 }) {
                     Icon(
-                        painterResource(id = R.drawable.baseline_fast_forward_24),
-                        contentDescription = "Change speed mode",
-                        tint = if (speedMode) Color.Yellow else Color.White
-                    )
-                }
-
-                IconButton(onClick = {
-                    controllerShowTime = 2000L
-                    scale += 0.02f
-                }) {
-                    Icon(
-                        painterResource(id = R.drawable.baseline_zoom_in_24),
-                        contentDescription = "Zoom in",
+                        painterResource(id = R.drawable.baseline_skip_next_24),
+                        contentDescription = "Next episode",
                         tint = Color.White
                     )
                 }
             }
+
+
 
             if (isShowController) Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -316,12 +478,7 @@ fun CustomPlayerView(
                     IconButton(
                         onClick = {
                             controllerShowTime = 2000L
-                            TrackSelectionDialogBuilder(
-                                context,
-                                "Audio",
-                                exoPlayer,
-                                TRACK_TYPE_AUDIO
-                            ).build().show()
+                            onAudioChange.invoke()
                         }, modifier = Modifier
                             .size(20.dp)
                             .padding(start = 6.dp)
@@ -338,12 +495,7 @@ fun CustomPlayerView(
                     IconButton(
                         onClick = {
                             controllerShowTime = 2000L
-                            TrackSelectionDialogBuilder(
-                                context,
-                                "Subtitles",
-                                exoPlayer,
-                                TRACK_TYPE_TEXT
-                            ).build().show()
+                            onSubtitleChange.invoke()
                         }, modifier = Modifier
                             .size(20.dp)
                             .padding(start = 6.dp)
@@ -360,12 +512,7 @@ fun CustomPlayerView(
                     IconButton(
                         onClick = {
                             controllerShowTime = 2000L
-                            TrackSelectionDialogBuilder(
-                                context,
-                                "Quality",
-                                exoPlayer,
-                                TRACK_TYPE_VIDEO
-                            ).build().show()
+                            onQualityChange.invoke()
                         }, modifier = Modifier
                             .size(20.dp)
                             .padding(start = 6.dp)
@@ -473,72 +620,70 @@ fun CustomPlayerView(
     }
 }
 
-
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OMovieDetailScreen(
-    navController: NavController,
-    viewModel: OMovieDetailViewModel
-) {
-    OnLifecycleEvent { _, event ->
-        when (event) {
-            Lifecycle.Event.ON_PAUSE -> {
-                viewModel.saveHistory()
-            }
-
-            else -> {}
-        }
-    }
-
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val playerIndex by viewModel.playerIndex.collectAsStateWithLifecycle()
-    val mediaState by viewModel.mediaState.collectAsStateWithLifecycle()
-    val duration by viewModel.duration.collectAsStateWithLifecycle()
-    val serverData by viewModel.serverData.collectAsStateWithLifecycle()
-    val serverList by viewModel.serverList.collectAsStateWithLifecycle()
-    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var bottomSheetValues by rememberSaveable { mutableStateOf<BottomSheetValues?>(null) }
-
-    if (bottomSheetValues != null) {
+fun BottomSheetSelectTracks(bottomSheetState: BottomSheetState?, dismiss: () -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    if (bottomSheetState != null) {
         ModalBottomSheet(
-            onDismissRequest = { bottomSheetValues = null },
-            sheetState = bottomSheetState,
-            containerColor = Color.Black
+            onDismissRequest = dismiss,
+            sheetState = sheetState,
+            containerColor = Color.Black,
+            tonalElevation = 12.dp
         ) {
-            Column {
-                bottomSheetValues?.second?.forEachIndexed { index, item ->
+            Column(
+                Modifier
+                    .padding(vertical = 12.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                bottomSheetState.second.forEach { item ->
                     SelectItemRow(
-                        title = item,
-                        selected = index == bottomSheetValues?.first,
+                        title = item.third,
+                        selected = item == bottomSheetState.first,
                         onChange = {
-                            bottomSheetValues?.third?.invoke(index)
+                            bottomSheetState.third.invoke(item)
                         }
                     )
                 }
             }
         }
     }
+}
 
-    var lifecycle by remember {
-        mutableStateOf(Lifecycle.Event.ON_CREATE)
+@Composable
+fun OMovieDetailScreen(
+    navController: NavController,
+    viewModel: OMovieDetailViewModel
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val playerIndex by viewModel.playerIndex.collectAsStateWithLifecycle()
+    val mediaState by viewModel.mediaState.collectAsStateWithLifecycle()
+    val duration by viewModel.duration.collectAsStateWithLifecycle()
+    val serverData by viewModel.serverData.collectAsStateWithLifecycle()
+    val serverList by viewModel.serverList.collectAsStateWithLifecycle()
+    val qualityTracks by viewModel.qualityTracks.collectAsStateWithLifecycle()
+    val audioTracks by viewModel.audioTracks.collectAsStateWithLifecycle()
+    val subtitleTracks by viewModel.subtitleTracks.collectAsStateWithLifecycle()
+    val subtitleOffset by viewModel.subtitleOffset.collectAsStateWithLifecycle()
+    var bottomSheetState by rememberSaveable { mutableStateOf<BottomSheetState?>(null) }
+
+    BottomSheetSelectTracks(
+        bottomSheetState = bottomSheetState,
+        dismiss = {
+            bottomSheetState = null
+        }
+    )
+
+    val trackCallBack: BottomSheetCallback = { index ->
+        viewModel.changeTrack(index.first, index.second)
+        bottomSheetState = null
     }
 
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val configureScreen = LocalConfiguration.current
 
     val exitFullscreen = {
         context.setScreenOrientation(SCREEN_ORIENTATION_USER_PORTRAIT)
-    }
-
-    DisposableEffect(key1 = lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            lifecycle = event
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
     }
 
     LaunchedEffect(key1 = context) {
@@ -563,22 +708,40 @@ fun OMovieDetailScreen(
                     CustomPlayerView(
                         context = context,
                         modifier = Modifier.fillMaxSize(),
-                        lifecycle = lifecycle,
                         exoPlayer = viewModel.exoPlayer,
                         fullScreen = true,
                         mediaState = mediaState,
                         duration = duration,
                         isMultipleServer = serverList.size > 1,
+                        subtitleOffset = subtitleOffset,
+                        onServerChange = {
+                            val values = serverList.mapIndexed { index, episode ->
+                                Triple(index, 0, episode.serverName ?: "Server $index")
+                            }
+                            val currentIndex = values.getOrNull(serverData.first)
+                            val callback: BottomSheetCallback = { index ->
+                                viewModel.changeServer(index.first)
+                                bottomSheetState = null
+                            }
+                            bottomSheetState = Triple(currentIndex, values, callback)
+                        },
+                        onQualityChange = {
+                            bottomSheetState =
+                                Triple(qualityTracks.first, qualityTracks.second, trackCallBack)
+                        },
+                        onAudioChange = {
+                            bottomSheetState =
+                                Triple(audioTracks.first, audioTracks.second, trackCallBack)
+                        },
+                        onSubtitleChange = {
+                            bottomSheetState =
+                                Triple(subtitleTracks.first, subtitleTracks.second, trackCallBack)
+                        },
+                        onNextEpisode = {
+                            viewModel.nextEpisode()
+                        }
                     ) {
-                        val values = serverList.mapIndexed { index, episode ->
-                            episode.serverName ?: "Server $index"
-                        }
-                        val currentIndex = serverData.first
-                        val callback: BottomSheetCallback = {
-                            viewModel.changeServer(it)
-                            bottomSheetValues = null
-                        }
-                        bottomSheetValues = Triple(currentIndex, values, callback)
+                        viewModel.onSubtitleOffsetChange(it)
                     }
                 }
 
@@ -594,22 +757,48 @@ fun OMovieDetailScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(16 / 9f),
-                                lifecycle = lifecycle,
                                 exoPlayer = viewModel.exoPlayer,
                                 fullScreen = false,
                                 mediaState = mediaState,
                                 duration = duration,
                                 isMultipleServer = serverList.size > 1,
+                                subtitleOffset = subtitleOffset,
+                                onServerChange = {
+                                    val values = serverList.mapIndexed { index, episode ->
+                                        Triple(index, 0, episode.serverName ?: "Server $index")
+                                    }
+                                    val currentIndex = values.getOrNull(serverData.first)
+                                    val callback: BottomSheetCallback = { index ->
+                                        viewModel.changeServer(index.first)
+                                        bottomSheetState = null
+                                    }
+                                    bottomSheetState = Triple(currentIndex, values, callback)
+                                },
+                                onQualityChange = {
+                                    bottomSheetState =
+                                        Triple(
+                                            qualityTracks.first,
+                                            qualityTracks.second,
+                                            trackCallBack
+                                        )
+                                },
+                                onAudioChange = {
+                                    bottomSheetState =
+                                        Triple(audioTracks.first, audioTracks.second, trackCallBack)
+                                },
+                                onSubtitleChange = {
+                                    bottomSheetState =
+                                        Triple(
+                                            subtitleTracks.first,
+                                            subtitleTracks.second,
+                                            trackCallBack
+                                        )
+                                },
+                                onNextEpisode = {
+                                    viewModel.nextEpisode()
+                                }
                             ) {
-                                val values = serverList.mapIndexed { index, episode ->
-                                    episode.serverName ?: "Server $index"
-                                }
-                                val currentIndex = serverData.first
-                                val callback: BottomSheetCallback = {
-                                    viewModel.changeServer(it)
-                                    bottomSheetValues = null
-                                }
-                                bottomSheetValues = Triple(currentIndex, values, callback)
+                                viewModel.onSubtitleOffsetChange(it)
                             }
 
                             IconButton(
@@ -711,76 +900,41 @@ fun OMovieDetailScreen(
     }
 }
 
-@kotlin.OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun SuperStreamDetailScreen(
     navController: NavController,
     viewModel: SuperStreamDetailViewModel
 ) {
-    OnLifecycleEvent { _, event ->
-        when (event) {
-            Lifecycle.Event.ON_PAUSE -> {
-                viewModel.saveHistory()
-            }
-
-            else -> {}
-        }
-    }
-
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playerIndex by viewModel.playerIndex.collectAsStateWithLifecycle()
     val mediaState by viewModel.mediaState.collectAsStateWithLifecycle()
     val duration by viewModel.duration.collectAsStateWithLifecycle()
     val serverIndex by viewModel.serverIndex.collectAsStateWithLifecycle()
     val sourceLinks by viewModel.sourceLinks.collectAsStateWithLifecycle()
-    val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var bottomSheetValues by rememberSaveable { mutableStateOf<BottomSheetValues?>(null) }
+    val qualityTracks by viewModel.qualityTracks.collectAsStateWithLifecycle()
+    val audioTracks by viewModel.audioTracks.collectAsStateWithLifecycle()
+    val subtitleTracks by viewModel.subtitleTracks.collectAsStateWithLifecycle()
+    val subtitleOffset by viewModel.subtitleOffset.collectAsStateWithLifecycle()
+    var bottomSheetState by rememberSaveable { mutableStateOf<BottomSheetState?>(null) }
 
-    if (bottomSheetValues != null) {
-        ModalBottomSheet(
-            onDismissRequest = { bottomSheetValues = null },
-            sheetState = bottomSheetState,
-            containerColor = Color.Black,
-            tonalElevation = 12.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                bottomSheetValues?.second?.forEachIndexed { index, item ->
-                    SelectItemRow(
-                        title = item,
-                        selected = index == bottomSheetValues?.first,
-                        onChange = {
-                            bottomSheetValues?.third?.invoke(index)
-                        }
-                    )
-                }
-            }
+    BottomSheetSelectTracks(
+        bottomSheetState = bottomSheetState,
+        dismiss = {
+            bottomSheetState = null
         }
-    }
+    )
 
-    var lifecycle by remember {
-        mutableStateOf(Lifecycle.Event.ON_CREATE)
+    val trackCallBack: BottomSheetCallback = { index ->
+        viewModel.changeTrack(index.first, index.second)
+        bottomSheetState = null
     }
 
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     val configureScreen = LocalConfiguration.current
 
     val exitFullscreen = {
         context.setScreenOrientation(SCREEN_ORIENTATION_USER_PORTRAIT)
-    }
-
-    DisposableEffect(key1 = lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            lifecycle = event
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
     }
 
     LaunchedEffect(key1 = context) {
@@ -805,19 +959,39 @@ fun SuperStreamDetailScreen(
                     CustomPlayerView(
                         context = context,
                         modifier = Modifier.fillMaxSize(),
-                        lifecycle = lifecycle,
                         exoPlayer = viewModel.exoPlayer,
                         fullScreen = true,
                         mediaState = mediaState,
                         duration = duration,
-                        isMultipleServer = sourceLinks.size > 1
-                    ) {
-                        val values = sourceLinks.map { src -> src.name }
-                        val callback: BottomSheetCallback = {
-                            viewModel.changeServer(it)
-                            bottomSheetValues = null
+                        isMultipleServer = sourceLinks.size > 1,
+                        subtitleOffset = subtitleOffset,
+                        onServerChange = {
+                            val values =
+                                sourceLinks.mapIndexed { index, src -> Triple(index, 0, src.name) }
+                            val server = values.getOrNull(serverIndex)
+                            val callback: BottomSheetCallback = { index ->
+                                viewModel.changeServer(index.first)
+                                bottomSheetState = null
+                            }
+                            bottomSheetState = Triple(server, values, callback)
+                        },
+                        onQualityChange = {
+                            bottomSheetState =
+                                Triple(qualityTracks.first, qualityTracks.second, trackCallBack)
+                        },
+                        onAudioChange = {
+                            bottomSheetState =
+                                Triple(audioTracks.first, audioTracks.second, trackCallBack)
+                        },
+                        onSubtitleChange = {
+                            bottomSheetState =
+                                Triple(subtitleTracks.first, subtitleTracks.second, trackCallBack)
+                        },
+                        onNextEpisode = {
+                            viewModel.nextEpisode()
                         }
-                        bottomSheetValues = Triple(serverIndex, values, callback)
+                    ) {
+                        viewModel.onSubtitleOffsetChange(it)
                     }
                 }
 
@@ -833,19 +1007,53 @@ fun SuperStreamDetailScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(16 / 9f),
-                                lifecycle = lifecycle,
                                 exoPlayer = viewModel.exoPlayer,
                                 fullScreen = false,
                                 mediaState = mediaState,
                                 duration = duration,
-                                isMultipleServer = sourceLinks.size > 1
-                            ) {
-                                val values = sourceLinks.map { src -> src.name }
-                                val callback: BottomSheetCallback = {
-                                    viewModel.changeServer(it)
-                                    bottomSheetValues = null
+                                isMultipleServer = sourceLinks.size > 1,
+                                subtitleOffset = subtitleOffset,
+                                onServerChange = {
+                                    val values =
+                                        sourceLinks.mapIndexed { index, src ->
+                                            Triple(
+                                                index,
+                                                0,
+                                                src.name
+                                            )
+                                        }
+                                    val server = values.getOrNull(serverIndex)
+                                    val callback: BottomSheetCallback = { index ->
+                                        viewModel.changeServer(index.first)
+                                        bottomSheetState = null
+                                    }
+                                    bottomSheetState = Triple(server, values, callback)
+                                },
+                                onQualityChange = {
+                                    bottomSheetState =
+                                        Triple(
+                                            qualityTracks.first,
+                                            qualityTracks.second,
+                                            trackCallBack
+                                        )
+                                },
+                                onAudioChange = {
+                                    bottomSheetState =
+                                        Triple(audioTracks.first, audioTracks.second, trackCallBack)
+                                },
+                                onSubtitleChange = {
+                                    bottomSheetState =
+                                        Triple(
+                                            subtitleTracks.first,
+                                            subtitleTracks.second,
+                                            trackCallBack
+                                        )
+                                },
+                                onNextEpisode = {
+                                    viewModel.nextEpisode()
                                 }
-                                bottomSheetValues = Triple(serverIndex, values, callback)
+                            ) {
+                                viewModel.onSubtitleOffsetChange(it)
                             }
 
                             IconButton(
@@ -931,14 +1139,23 @@ fun SuperStreamDetailScreen(
     }
 }
 
+
 @HiltViewModel
 class OMovieDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    val exoPlayer: ExoPlayer,
+    @ApplicationContext context: Context,
     private val mediaRepository: MediaRepository
-) : BaseMovieDetailViewModel(exoPlayer) {
+) : BaseMovieDetailViewModel() {
 
-    private val _uiState = MutableStateFlow<OMovieDetailResponse.OMovieDetail?>(null)
+    override val exoPlayer by lazy {
+        context.createExoPlayer()
+    }
+
+    override val trackNameProvider by lazy {
+        context.createTrackNameProvider()
+    }
+
+    private val _uiState = MutableStateFlow<OMovieDetail?>(null)
     val uiState = _uiState.asStateFlow()
 
     private val _error = Channel<NetworkResponse.Error>()
@@ -947,23 +1164,28 @@ class OMovieDetailViewModel @Inject constructor(
     private val _playerIndex = MutableStateFlow(0)
     val playerIndex = _playerIndex.asStateFlow()
 
-    private val _serverData = MutableStateFlow<Pair<Int, OMovieDetailResponse.Episode?>>(0 to null)
+    private val _serverData = MutableStateFlow<Pair<Int, OMovieDetail.Episode?>>(0 to null)
     val serverData = _serverData.asStateFlow()
 
-    private val _serverList = MutableStateFlow<List<OMovieDetailResponse.Episode>>(emptyList())
+    private val _serverList = MutableStateFlow<List<OMovieDetail.Episode>>(emptyList())
     val serverList = _serverList.asStateFlow()
 
-    fun saveHistory() {
-        viewModelScope.launch {
-            val id = uiState.value?.slug ?: return@launch
-            mediaRepository.insertHistory(
-                MediaHistory(
-                    id = id,
-                    serverIdx = serverData.value.first,
-                    index = playerIndex.value,
-                    position = exoPlayer.currentPosition
-                )
+    override suspend fun saveHistory() {
+        val id = uiState.value?.slug ?: return
+        mediaRepository.insertHistory(
+            MediaHistory(
+                id = id,
+                serverIdx = serverData.value.first,
+                index = playerIndex.value,
+                position = exoPlayer.currentPosition
             )
+        )
+    }
+
+    override fun nextEpisode() {
+        val newIndex = playerIndex.value + 1
+        if (newIndex < (serverData.value.second?.serverData?.size ?: 0)) {
+            changeEpisode(newIndex)
         }
     }
 
@@ -987,35 +1209,50 @@ class OMovieDetailViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            exoPlayer.prepare()
             exoPlayer.addListener(this@OMovieDetailViewModel)
             savedStateHandle.get<String>(NavScreen.OMovieDetailScreen.slug)?.let { slug ->
-                when (val response = mediaRepository.getOMovieDetail(slug)) {
+                val response = when (val res = mediaRepository.getOMovieDetail(slug)) {
+                    is NetworkResponse.Error -> mediaRepository.getOMovieDetail2(slug)
+                    is NetworkResponse.Success -> res
+                }
+
+                when (response) {
                     is NetworkResponse.Error -> _error.send(response)
-                    is NetworkResponse.Success -> {
-                        _uiState.value = response.data.movie
-                        val movieHistory = mediaRepository.getMediaHistory(slug)
-                        if (!response.data.episodes.isNullOrEmpty()) {
-                            _serverList.value = response.data.episodes
-                            _playerIndex.value = movieHistory?.index ?: 0
-                            val serverIndex = movieHistory?.serverIdx ?: 0
-                            val data = serverList.value.getOrNull(serverIndex)
-                            _serverData.value = serverIndex to data
-                            updatePlayer(movieHistory?.position ?: 0)
-                        }
-                    }
+                    is NetworkResponse.Success -> handleData(response, slug)
                 }
             }
         }
     }
+
+    private suspend fun handleData(response: NetworkResponse.Success<OMovieDetail>, slug: String) {
+        _uiState.value = response.data
+        val movieHistory = mediaRepository.getMediaHistory(slug)
+        if (!response.data.episodes.isNullOrEmpty()) {
+            _serverList.value = response.data.episodes
+            _playerIndex.value = movieHistory?.index ?: 0
+            val serverIndex = movieHistory?.serverIdx ?: 0
+            val data = serverList.value.getOrNull(serverIndex)
+            _serverData.value = serverIndex to data
+            updatePlayer(movieHistory?.position ?: 0)
+        }
+    }
 }
+
 
 @HiltViewModel
 class SuperStreamDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    val exoPlayer: ExoPlayer,
+    @ApplicationContext context: Context,
     private val mediaRepository: MediaRepository
-) : BaseMovieDetailViewModel(exoPlayer) {
+) : BaseMovieDetailViewModel() {
+
+    override val exoPlayer by lazy {
+        context.createExoPlayer()
+    }
+
+    override val trackNameProvider by lazy {
+        context.createTrackNameProvider()
+    }
 
     private val _uiState = MutableStateFlow<SuperStreamResponse?>(null)
     val uiState = _uiState.asStateFlow()
@@ -1032,35 +1269,31 @@ class SuperStreamDetailViewModel @Inject constructor(
     private val _sourceLinks = MutableStateFlow<List<SourceLink>>(emptyList())
     val sourceLinks = _sourceLinks.asStateFlow()
 
-    private val _subtitles = MutableStateFlow<List<Subtitle>>(emptyList())
-    val subtitles = _subtitles.asStateFlow()
+    private var _tmpSubtitles: List<Subtitle> = emptyList()
+    private var _tmpEpisodes: List<Episode> = emptyList()
 
-    private val _episodes = MutableStateFlow<List<Episode>>(emptyList())
-    val episodes = _episodes.asStateFlow()
     private suspend fun getDetail(id: String, type: SSMediaType) = when (type) {
         SSMediaType.Movies -> mediaRepository.getSuperStreamMovieDetail(id)
         SSMediaType.Series -> mediaRepository.getSuperStreamTvShowDetail(id)
     }
 
-    fun saveHistory() {
-        viewModelScope.launch {
-            val id = uiState.value?.id ?: return@launch
-            mediaRepository.insertHistory(
-                MediaHistory(
-                    id = id,
-                    serverIdx = serverIndex.value,
-                    index = playerIndex.value,
-                    position = exoPlayer.currentPosition
-                )
+    override suspend fun saveHistory() {
+        val id = uiState.value?.id ?: return
+        mediaRepository.insertHistory(
+            MediaHistory(
+                id = id,
+                serverIdx = serverIndex.value,
+                index = playerIndex.value,
+                position = exoPlayer.currentPosition
             )
-        }
+        )
     }
 
     fun changeServer(serverIndex: Int) {
         _serverIndex.value = serverIndex
         val sourceLink = sourceLinks.value.getOrNull(serverIndex) ?: return
         val position = exoPlayer.currentPosition
-        prepare(sourceLink, subtitles.value, if (position > 0) position else 0)
+        prepare(sourceLink, _tmpSubtitles, if (position > 0) position else 0)
     }
 
     fun changeEpisode(index: Int) {
@@ -1070,18 +1303,26 @@ class SuperStreamDetailViewModel @Inject constructor(
         }
     }
 
+    override fun nextEpisode() {
+        val newIndex = playerIndex.value + 1
+        if (newIndex < (_tmpEpisodes.size)) {
+            changeEpisode(newIndex)
+        }
+    }
+
     private fun updatePlayer(data: Pair<List<SourceLink>, List<Subtitle>>, position: Long) {
         _sourceLinks.value = data.first
-        _subtitles.value = data.second
+        _tmpSubtitles = data.second
+        val serverIndex = serverIndex.value
         prepare(
-            sourceLinks.value.getOrNull(playerIndex.value) ?: return,
-            subtitles.value,
+            sourceLinks.value.getOrNull(serverIndex) ?: return,
+            _tmpSubtitles,
             if (position > 0) position else 0
         )
     }
 
     private suspend fun getEpisodeLink(index: Int): Pair<List<SourceLink>, List<Subtitle>>? {
-        val episode = episodes.value.getOrNull(index) ?: return null
+        val episode = _tmpEpisodes.getOrNull(index) ?: return null
         return mediaRepository.getSourceLinksSuperStream(
             episode.tid ?: episode.id ?: return null,
             episode.season,
@@ -1119,7 +1360,7 @@ class SuperStreamDetailViewModel @Inject constructor(
 
                             is SuperStreamResponse.SuperStreamTvDetail -> {
                                 if (response.data.data?.episode.isNullOrEmpty().not()) {
-                                    _episodes.value = response.data.data?.episode ?: return@launch
+                                    _tmpEpisodes = response.data.data?.episode ?: return@launch
                                     getEpisodeLink(playerIndex.value) ?: return@launch
                                 } else return@launch
                             }
@@ -1134,9 +1375,10 @@ class SuperStreamDetailViewModel @Inject constructor(
 }
 
 
-abstract class BaseMovieDetailViewModel(
-    private val exoPlayer: ExoPlayer
-) : ViewModel(), Player.Listener {
+abstract class BaseMovieDetailViewModel : ViewModel(), Player.Listener {
+
+    abstract val exoPlayer: ExoPlayer
+    abstract val trackNameProvider: TrackNameProvider
 
     private val _mediaState: MutableStateFlow<MediaState> = MutableStateFlow(MediaState.Init)
     val mediaState = _mediaState.asStateFlow()
@@ -1144,9 +1386,112 @@ abstract class BaseMovieDetailViewModel(
     private val _duration: MutableStateFlow<Long> = MutableStateFlow(0L)
     val duration = _duration.asStateFlow()
 
+    private val _subtitleTracks =
+        MutableStateFlow<Pair<TrackValue?, BottomSheetValues>>(null to emptyList())
+    val subtitleTracks = _subtitleTracks.asStateFlow()
+
+    private val _audioTracks =
+        MutableStateFlow<Pair<TrackValue?, BottomSheetValues>>(null to emptyList())
+    val audioTracks = _audioTracks.asStateFlow()
+
+    private val _qualityTracks =
+        MutableStateFlow<Pair<TrackValue?, BottomSheetValues>>(null to emptyList())
+    val qualityTracks = _qualityTracks.asStateFlow()
+
+    private val _subtitleOffset = MutableStateFlow(0L)
+    val subtitleOffset = _subtitleOffset.asStateFlow()
+
+    private var currentTextRenderer: CustomTextRenderer? = null
+
+    @OptIn(UnstableApi::class)
+    fun Context.createExoPlayer(): ExoPlayer {
+        return buildExoplayer().setRenderersFactory { eventHandler, videoRendererEventListener, audioRendererEventListener, textRendererOutput, metadataRendererOutput ->
+            getRenderers(
+                eventHandler = eventHandler,
+                videoRendererEventListener = videoRendererEventListener,
+                audioRendererEventListener = audioRendererEventListener,
+                textRendererOutput = textRendererOutput,
+                metadataRendererOutput = metadataRendererOutput,
+                subtitleOffset = subtitleOffset.value,
+                onTextRendererChange = {
+                    currentTextRenderer = it
+                }
+            )
+        }.build()
+    }
+
+    @OptIn(UnstableApi::class)
+    fun Context.createTrackNameProvider(): TrackNameProvider {
+        return DefaultTrackNameProvider(this.resources)
+    }
+
+    fun onSubtitleOffsetChange(offset: Long) {
+        _subtitleOffset.value = offset
+        currentTextRenderer?.setRenderOffsetMs(offset)
+    }
+
     override fun onCleared() {
-        super.onCleared()
-        exoPlayer.release()
+        viewModelScope.launch {
+            saveHistory()
+            exoPlayer.release()
+            super.onCleared()
+        }
+    }
+
+    abstract suspend fun saveHistory()
+
+    fun changeTrack(tracksIndex: Int, trackIndex: Int) {
+        val trackGroup = exoPlayer.currentTracks.groups.getOrNull(tracksIndex)
+        if (trackGroup != null) {
+            exoPlayer.trackSelectionParameters =
+                exoPlayer.trackSelectionParameters
+                    .buildUpon()
+                    .setOverrideForType(
+                        TrackSelectionOverride(trackGroup.mediaTrackGroup, trackIndex)
+                    )
+                    .build()
+        }
+    }
+
+    @UnstableApi
+    override fun onTracksChanged(tracks: Tracks) {
+        super.onTracksChanged(tracks)
+        var subtitleIndex: TrackValue? = null
+        val subtitles = mutableListOf<TrackValue>()
+
+        var audioIndex: TrackValue? = null
+        val audios = mutableListOf<TrackValue>()
+
+        var qualityIndex: TrackValue? = null
+        val qualities = mutableListOf<TrackValue>()
+
+        tracks.groups.forEachIndexed { index, trackGroup ->
+            for (i in 0 until trackGroup.length) {
+                val isSelected = trackGroup.isTrackSelected(i)
+                val trackName = trackNameProvider.getTrackName(trackGroup.getTrackFormat(i))
+                val trackValue = TrackValue(index, i, trackName)
+                when (trackGroup.type) {
+                    TRACK_TYPE_TEXT -> {
+                        if (isSelected) subtitleIndex = trackValue
+                        subtitles.add(trackValue)
+                    }
+
+                    TRACK_TYPE_AUDIO -> {
+                        if (isSelected) audioIndex = trackValue
+                        audios.add(trackValue)
+                    }
+
+                    TRACK_TYPE_VIDEO -> {
+                        if (isSelected) qualityIndex = trackValue
+                        qualities.add(trackValue)
+                    }
+                }
+            }
+        }
+
+        _subtitleTracks.value = subtitleIndex to subtitles
+        _audioTracks.value = audioIndex to audios
+        _qualityTracks.value = qualityIndex to qualities
     }
 
 
@@ -1160,9 +1505,11 @@ abstract class BaseMovieDetailViewModel(
             }
 
             Player.STATE_BUFFERING -> _mediaState.value = MediaState.Loading
-            Player.STATE_ENDED -> exoPlayer.seekToNext()
+            Player.STATE_ENDED -> nextEpisode()
         }
     }
+
+    abstract fun nextEpisode()
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         super.onIsPlayingChanged(isPlaying)
@@ -1224,8 +1571,8 @@ abstract class BaseMovieDetailViewModel(
                     .Builder(Uri.parse(subtitle.url))
                     .setMimeType(getSubtitleMimeType(subtitle))
                     .setLabel(subtitle.name)
+                    .setLanguage(subtitle.name?.substring(0..1)?.lowercase())
                     .build()
-
 
                 SingleSampleMediaSource.Factory(
                     DefaultHttpDataSource.Factory()
@@ -1240,6 +1587,7 @@ abstract class BaseMovieDetailViewModel(
         subtitles: List<Subtitle> = emptyList(),
         initialPlaybackPosition: Long = 0L,
     ) {
+        Log.d("AAA", "prepare:$sourceLink")
         exoPlayer.run {
             val mediaSource = createMediaSource(url = sourceLink.url, title = sourceLink.name)
             setMediaSource(

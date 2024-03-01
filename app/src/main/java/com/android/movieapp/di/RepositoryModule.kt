@@ -1,10 +1,5 @@
 package com.android.movieapp.di
 
-import android.content.Context
-import androidx.media3.common.C.WAKE_MODE_NETWORK
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.DefaultLoadControl
-import androidx.media3.exoplayer.ExoPlayer
 import com.android.movieapp.db.AppDatabase
 import com.android.movieapp.db.CountryDao
 import com.android.movieapp.db.HistoryDao
@@ -15,8 +10,8 @@ import com.android.movieapp.db.TvDao
 import com.android.movieapp.ds.DataStoreManager
 import com.android.movieapp.network.service.ConfigureService
 import com.android.movieapp.network.service.FilterService
-import com.android.movieapp.network.service.MovieService
 import com.android.movieapp.network.service.MediaRequest
+import com.android.movieapp.network.service.MovieService
 import com.android.movieapp.network.service.PersonService
 import com.android.movieapp.network.service.PopularService
 import com.android.movieapp.network.service.SearchService
@@ -24,8 +19,8 @@ import com.android.movieapp.network.service.TvService
 import com.android.movieapp.repository.ConfigureRepository
 import com.android.movieapp.repository.FavoriteRepository
 import com.android.movieapp.repository.FilterRepository
-import com.android.movieapp.repository.MovieRepository
 import com.android.movieapp.repository.MediaRepository
+import com.android.movieapp.repository.MovieRepository
 import com.android.movieapp.repository.PersonRepository
 import com.android.movieapp.repository.PopularRepository
 import com.android.movieapp.repository.TvRepository
@@ -33,7 +28,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ViewModelScoped
 
 
@@ -129,23 +123,4 @@ object RepositoryModule {
         return MediaRepository(mediaRequest, historyDao)
     }
 
-    @UnstableApi
-    @Provides
-    @ViewModelScoped
-    fun provideExoPlayer(
-        @ApplicationContext app: Context
-    ): ExoPlayer {
-
-        val loadControl = DefaultLoadControl.Builder()
-            .setBufferDurationsMs(32 * 1024, 64 * 1024, 10 * 1024, 10 * 1024)
-            .build()
-
-        return ExoPlayer.Builder(app).apply {
-            setHandleAudioBecomingNoisy(true)
-            setLoadControl(loadControl)
-            setSeekBackIncrementMs(10000L)
-            setSeekForwardIncrementMs(10000L)
-            setWakeMode(WAKE_MODE_NETWORK)
-        }.build()
-    }
 }

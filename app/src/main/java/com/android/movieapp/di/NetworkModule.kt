@@ -3,14 +3,15 @@ package com.android.movieapp.di
 import com.android.movieapp.network.Api
 import com.android.movieapp.network.service.ConfigureService
 import com.android.movieapp.network.service.FilterService
-import com.android.movieapp.network.service.MovieService
-import com.android.movieapp.network.service.NetworkService
 import com.android.movieapp.network.service.MediaRequest
 import com.android.movieapp.network.service.MediaService
+import com.android.movieapp.network.service.MovieService
+import com.android.movieapp.network.service.NetworkService
 import com.android.movieapp.network.service.PersonService
 import com.android.movieapp.network.service.PopularService
 import com.android.movieapp.network.service.SearchService
 import com.android.movieapp.network.service.TvService
+import com.android.movieapp.ui.ext.ignoreAllSSLErrors
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -37,11 +38,11 @@ interface RetrofitQualifier {
 
     @Qualifier
     @Retention(AnnotationRetention.BINARY)
-    annotation class OPMovieRetrofit
+    annotation class MovieRetrofit
 
     @Qualifier
     @Retention(AnnotationRetention.BINARY)
-    annotation class OPMovieOkHttpClient
+    annotation class MovieOkHttpClient
 
 }
 
@@ -59,17 +60,19 @@ object NetworkModule {
         addInterceptor(RequestInterceptor())
         connectTimeout(25, TimeUnit.SECONDS)
         callTimeout(25, TimeUnit.SECONDS)
+        ignoreAllSSLErrors()
     }.build()
 
     @Singleton
     @Provides
-    @RetrofitQualifier.OPMovieOkHttpClient
-    fun provideOPMovieOkHttpClient(
+    @RetrofitQualifier.MovieOkHttpClient
+    fun provideMovieOkHttpClient(
         httpLoggingInterceptor: HttpLoggingInterceptor
     ): OkHttpClient = OkHttpClient.Builder().apply {
         addInterceptor(httpLoggingInterceptor)
         connectTimeout(25, TimeUnit.SECONDS)
         callTimeout(25, TimeUnit.SECONDS)
+        ignoreAllSSLErrors()
     }.build()
 
     @Singleton
@@ -93,11 +96,11 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    @RetrofitQualifier.OPMovieRetrofit
-    fun provideOPMovieRetrofit(@RetrofitQualifier.OPMovieOkHttpClient okhHttpClient: OkHttpClient): Retrofit {
+    @RetrofitQualifier.MovieRetrofit
+    fun provideOPMovieRetrofit(@RetrofitQualifier.MovieOkHttpClient okhHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .client(okhHttpClient)
-            .baseUrl("https://ophim9.cc/")
+            .baseUrl(Api.BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
@@ -110,7 +113,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOMovieService(@RetrofitQualifier.OPMovieRetrofit retrofit: Retrofit): MediaService {
+    fun provideOMovieService(@RetrofitQualifier.MovieRetrofit retrofit: Retrofit): MediaService {
         return retrofit.create(MediaService::class.java)
     }
 

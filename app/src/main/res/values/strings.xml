@@ -50,4 +50,12 @@
     <string name="server">Server</string>
     <string name="o_movie">O Movie</string>
     <string name="super_stream_movie">Super stream movie</string>
+    <string name="fit">Fit</string>
+    <string name="fixed_width">Fixed width</string>
+    <string name="fixed_height">Fixed height</string>
+    <string name="fill">Fill</string>
+    <string name="zoom">Zoom</string>
+    <string name="speed_x">Speed: %1$sx</string>
+    <string name="offset_s">Offset: %1$ss</string>
+    <string name="zoom_percent">Zoom: %1$s\%%</string>
 </resources>

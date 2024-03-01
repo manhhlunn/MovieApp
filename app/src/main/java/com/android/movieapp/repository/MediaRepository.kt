@@ -129,6 +129,7 @@ class MediaRepository(
 
 
     suspend fun getOMovieDetail(slug: String) = mediaRequest.getOMovieDetail(slug)
+    suspend fun getOMovieDetail2(slug: String) = mediaRequest.getOMovieDetail2(slug)
     suspend fun getSuperStreamMovieDetail(id: String) = mediaRequest.getSuperStreamMovieDetail(id)
     suspend fun getSuperStreamTvShowDetail(id: String) = mediaRequest.getSuperStreamTvShowDetail(id)
     suspend fun getSourceLinksSuperStream(

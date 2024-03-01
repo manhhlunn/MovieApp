@@ -85,15 +85,10 @@ fun MediaScreen(navController: NavController) {
         )
     }) {
         NavHost(
-            modifier = Modifier
-                .padding(
-                    top = 12.dp,
-                    bottom = it.calculateBottomPadding() - 32.dp
-                ),
+            modifier = Modifier.padding(it),
             navController = navControllerOMovie,
             startDestination = BottomNavigationScreen.OMovieMediaScreen.route
         ) {
-
             composable(route = BottomNavigationScreen.OMovieMediaScreen.route) {
                 OMovieScreen(navController = navController, viewModel = hiltViewModel())
             }
@@ -283,15 +278,14 @@ fun OMovieScreen(navController: NavController, viewModel: MediaViewModel) {
         ) {
             LazyVerticalGrid(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 32.dp),
+                    .fillMaxSize(),
                 columns = GridCells.Fixed(getColumnCount()),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp)
             ) {
                 items(values.itemCount) { index ->
                     values[index]?.let { item ->
                         MovieItemView(
-                            posterUrl = "${MovieApp.baseImageUrl}uploads/movies/${item.thumbUrl}",
+                            posterUrl = "${MovieApp.baseImageUrl}${item.thumbUrl}",
                             title = item.name.toString(),
                             bottomRight = item.quality
                         ) {
@@ -372,10 +366,9 @@ fun SuperStreamMovieScreen(navController: NavController, viewModel: SuperStreamM
         ) {
             LazyVerticalGrid(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 32.dp),
+                    .fillMaxSize(),
                 columns = GridCells.Fixed(getColumnCount()),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp)
             ) {
                 items(values.itemCount) { index ->
                     values[index]?.let { item ->

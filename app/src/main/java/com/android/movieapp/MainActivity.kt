@@ -1,30 +1,43 @@
 package com.android.movieapp
 
+import android.app.PictureInPictureParams
 import android.content.Context
+import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
+import android.util.Rational
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -46,14 +59,55 @@ import com.android.movieapp.ui.home.LocalDarkTheme
 import com.android.movieapp.ui.theme.MovieAppTheme
 import com.google.gson.Gson
 import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.io.Serializable
+import javax.inject.Inject
+
+val LocalIsInPipMode = compositionLocalOf<Boolean> {
+    error("LocalIsInPipMode is not provided")
+}
+
+@Composable
+fun rememberPipMode() = rememberUpdatedState(LocalIsInPipMode.current)
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    private val viewModel: MainActivityViewModel by viewModels()
+
     private val wakeLock by lazy {
         (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
             return@lazy newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MyApp::MyWakelockTag")
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        viewModel.isInPipMode = isInPictureInPictureMode
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            && viewModel.isInPlayer.value
+            && packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+        ) {
+            // Force pip mode for player
+            enterPictureInPictureMode(
+                with(PictureInPictureParams.Builder()) {
+                    val width = 16
+                    val height = 9
+                    setAspectRatio(Rational(width, height))
+                    build()
+                }
+            )
         }
     }
 
@@ -62,149 +116,178 @@ class MainActivity : ComponentActivity() {
         wakeLock.release()
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        wakeLock.acquire(2 * 60 * 60 * 1000L)
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        hideSystemBars()
+    }
+
+    private fun hideSystemBars() {
         val windowInsetsController =
             WindowCompat.getInsetsController(window, window.decorView)
         windowInsetsController.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
         window.decorView.setOnApplyWindowInsetsListener { view, windowInsets ->
-            windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
             view.onApplyWindowInsets(windowInsets)
         }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        wakeLock.acquire(2 * 60 * 60 * 1000L)
+        hideSystemBars()
         enableEdgeToEdge()
         setContent {
             val systemTheme = isSystemInDarkTheme()
             val isDarkTheme = remember { mutableStateOf(systemTheme) }
-            MovieAppTheme(darkTheme = isDarkTheme.value) {
-                CompositionLocalProvider(
-                    LocalDarkTheme provides isDarkTheme,
-                ) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.background,
-                    ) {
-                        val navController = rememberNavController()
-                        NavHost(
-                            navController = navController,
-                            startDestination = NavScreen.HomeScreen.route
+            val navController = rememberNavController()
+            navController.addOnDestinationChangedListener { _, destination, _ ->
+                viewModel.setPlayerModeState(
+                    destination.route == NavScreen.SuperStreamMovieDetailScreen.routeWithArgument
+                            || destination.route == NavScreen.OMovieDetailScreen.routeWithArgument
+                )
+            }
+
+            CompositionLocalProvider(LocalDarkTheme provides isDarkTheme) {
+                CompositionLocalProvider(LocalIsInPipMode provides viewModel.isInPipMode) {
+                    MovieAppTheme(darkTheme = isDarkTheme.value) {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background,
                         ) {
-
-                            composable(route = NavScreen.HomeScreen.route) {
-                                HomeScreen(navController = navController)
-                            }
-
-                            composable(
-                                route = NavScreen.MovieDetailScreen.routeWithArgument,
-                                arguments = listOf(
-                                    navArgument(NavScreen.MovieDetailScreen.movieDetail) {
-                                        type = NavScreen.MovieDetailScreen.MovieDetailType()
-                                    })
-                            ) {
-                                MovieDetailScreen(
-                                    navController = navController
-                                )
-                            }
-
-                            composable(
-                                route = NavScreen.OMovieDetailScreen.routeWithArgument,
-                                arguments = listOf(
-                                    navArgument(NavScreen.OMovieDetailScreen.slug) {
-                                        type = NavType.StringType
-                                    })
+                            NavHost(
+                                navController = navController,
+                                startDestination = NavScreen.HomeScreen.route
                             ) {
 
-                                OMovieDetailScreen(
-                                    navController = navController,
-                                    viewModel = hiltViewModel()
-                                )
-                            }
+                                composable(route = NavScreen.HomeScreen.route) {
+                                    HomeScreen(navController = navController)
+                                }
 
-                            composable(
-                                route = NavScreen.SuperStreamMovieDetailScreen.routeWithArgument,
-                                arguments = listOf(
-                                    navArgument(NavScreen.SuperStreamMovieDetailScreen.superStreamMovie) {
-                                        type =
-                                            NavScreen.SuperStreamMovieDetailScreen.MyMovieDetailType()
-                                    })
-                            ) {
-                                SuperStreamDetailScreen(
-                                    navController = navController,
-                                    viewModel = hiltViewModel()
-                                )
-                            }
-
-                            composable(
-                                route = NavScreen.TvDetailScreen.routeWithArgument,
-                                arguments = listOf(
-                                    navArgument(NavScreen.TvDetailScreen.tvDetail) {
-                                        type = NavScreen.TvDetailScreen.TvDetailType()
-                                    })
-                            ) {
-                                TvDetailScreen(
-                                    navController = navController
-                                )
-                            }
-
-                            composable(
-                                route = NavScreen.PersonDetailScreen.routeWithArgument,
-                                arguments = listOf(
-                                    navArgument(NavScreen.PersonDetailScreen.personDetail) {
-                                        type = NavScreen.PersonDetailScreen.PersonDetailType()
-                                    })
-                            ) {
-                                PersonDetailScreen(
-                                    navController = navController
-                                )
-                            }
-
-                            composable(
-                                route = NavScreen.KeyDetailScreen.routeWithArgument,
-                                arguments = listOf(
-                                    navArgument(NavScreen.KeyDetailScreen.keyDetail) {
-                                        type = NavScreen.KeyDetailScreen.KeyDetailType()
-                                    })
-                            ) {
-                                KeyDetailScreen(
-                                    navController = navController
-                                )
-                            }
-
-                            dialog(
-                                dialogProperties = DialogProperties(
-                                    usePlatformDefaultWidth = false // experimental
-                                ),
-                                route = NavScreen.PreviewImageDialog.routeWithArgument,
-                                arguments = listOf(
-                                    navArgument(NavScreen.PreviewImageDialog.imageUrl) {
-                                        type = NavScreen.PreviewImageDialog.ImageType()
-                                    })
-                            ) {
-                                val image =
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                        it.arguments?.getSerializable(
-                                            NavScreen.PreviewImageDialog.imageUrl,
-                                            ImageResponse::class.java
-                                        )
-                                    } else {
-                                        @Suppress("DEPRECATION")
-                                        it.arguments?.getSerializable(NavScreen.PreviewImageDialog.imageUrl) as? ImageResponse
-                                    }
-
-                                image?.filePath?.let { path ->
-                                    ZoomableImage(
-                                        imageUrl = Api.getOriginalPath(path),
-                                        navController
+                                composable(
+                                    route = NavScreen.MovieDetailScreen.routeWithArgument,
+                                    arguments = listOf(
+                                        navArgument(NavScreen.MovieDetailScreen.movieDetail) {
+                                            type = NavScreen.MovieDetailScreen.MovieDetailType()
+                                        })
+                                ) {
+                                    MovieDetailScreen(
+                                        navController = navController
                                     )
-                                } ?: navController.popBackStack()
+                                }
+
+                                composable(
+                                    route = NavScreen.OMovieDetailScreen.routeWithArgument,
+                                    arguments = listOf(
+                                        navArgument(NavScreen.OMovieDetailScreen.slug) {
+                                            type = NavType.StringType
+                                        })
+                                ) {
+                                    OMovieDetailScreen(
+                                        navController = navController,
+                                        viewModel = hiltViewModel()
+                                    )
+                                }
+
+                                composable(
+                                    route = NavScreen.SuperStreamMovieDetailScreen.routeWithArgument,
+                                    arguments = listOf(
+                                        navArgument(NavScreen.SuperStreamMovieDetailScreen.superStreamMovie) {
+                                            type =
+                                                NavScreen.SuperStreamMovieDetailScreen.MyMovieDetailType()
+                                        })
+                                ) {
+                                    SuperStreamDetailScreen(
+                                        navController = navController,
+                                        viewModel = hiltViewModel()
+                                    )
+                                }
+
+                                composable(
+                                    route = NavScreen.TvDetailScreen.routeWithArgument,
+                                    arguments = listOf(
+                                        navArgument(NavScreen.TvDetailScreen.tvDetail) {
+                                            type = NavScreen.TvDetailScreen.TvDetailType()
+                                        })
+                                ) {
+                                    TvDetailScreen(
+                                        navController = navController
+                                    )
+                                }
+
+                                composable(
+                                    route = NavScreen.PersonDetailScreen.routeWithArgument,
+                                    arguments = listOf(
+                                        navArgument(NavScreen.PersonDetailScreen.personDetail) {
+                                            type = NavScreen.PersonDetailScreen.PersonDetailType()
+                                        })
+                                ) {
+                                    PersonDetailScreen(
+                                        navController = navController
+                                    )
+                                }
+
+                                composable(
+                                    route = NavScreen.KeyDetailScreen.routeWithArgument,
+                                    arguments = listOf(
+                                        navArgument(NavScreen.KeyDetailScreen.keyDetail) {
+                                            type = NavScreen.KeyDetailScreen.KeyDetailType()
+                                        })
+                                ) {
+                                    KeyDetailScreen(
+                                        navController = navController
+                                    )
+                                }
+
+                                dialog(
+                                    dialogProperties = DialogProperties(
+                                        usePlatformDefaultWidth = false // experimental
+                                    ),
+                                    route = NavScreen.PreviewImageDialog.routeWithArgument,
+                                    arguments = listOf(
+                                        navArgument(NavScreen.PreviewImageDialog.imageUrl) {
+                                            type = NavScreen.PreviewImageDialog.ImageType()
+                                        })
+                                ) {
+                                    val image =
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            it.arguments?.getSerializable(
+                                                NavScreen.PreviewImageDialog.imageUrl,
+                                                ImageResponse::class.java
+                                            )
+                                        } else {
+                                            @Suppress("DEPRECATION")
+                                            it.arguments?.getSerializable(NavScreen.PreviewImageDialog.imageUrl) as? ImageResponse
+                                        }
+
+                                    image?.filePath?.let { path ->
+                                        ZoomableImage(
+                                            imageUrl = Api.getOriginalPath(path),
+                                            navController
+                                        )
+                                    } ?: navController.popBackStack()
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+
+@HiltViewModel
+class MainActivityViewModel @Inject constructor() : ViewModel() {
+
+    var isInPipMode by mutableStateOf(false)
+
+    private val _isInPlayer = MutableStateFlow(true)
+    val isInPlayer = _isInPlayer.asStateFlow()
+
+    fun setPlayerModeState(isInPlayer: Boolean) {
+        _isInPlayer.value = isInPlayer
     }
 }
 

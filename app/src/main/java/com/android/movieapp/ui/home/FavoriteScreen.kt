@@ -52,10 +52,7 @@ fun FavoriteScreen(navController: NavController) {
     }) {
         NavHost(
             modifier = Modifier
-                .padding(
-                    top = 12.dp,
-                    bottom = it.calculateBottomPadding() - 32.dp
-                ),
+                .padding(it),
             navController = navControllerFav,
             startDestination = BottomNavigationScreen.TvFavoriteScreen.route
         ) {
@@ -95,10 +92,7 @@ fun WatchedScreen(navController: NavController) {
     }) {
         NavHost(
             modifier = Modifier
-                .padding(
-                    top = 12.dp,
-                    bottom = it.calculateBottomPadding() - 32.dp
-                ),
+                .padding(it),
             navController = navControllerWatched,
             startDestination = BottomNavigationScreen.TvWatchedScreen.route
         ) {
@@ -162,10 +156,9 @@ fun BaseFavoriteScreen(navController: NavController, viewModel: ViewModel) {
         ) {
             LazyVerticalGrid(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 32.dp),
+                    .fillMaxSize(),
                 columns = GridCells.Fixed(getColumnCount()),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp)
             ) {
                 items(values.itemCount) { index ->
                     values[index]?.let { item ->

@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.android.movieapp.R
 import kotlinx.coroutines.flow.Flow
@@ -38,8 +39,7 @@ fun BottomNavigationView(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     NavigationBar(
-        modifier = modifier
-            .shadow(5.dp, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
+        modifier = modifier.shadow(5.dp, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)),
         containerColor = MaterialTheme.colorScheme.onPrimary
     ) {
         items.forEach { item ->
@@ -67,10 +67,8 @@ fun BottomNavigationView(
                 selected = currentRoute == item.route,
                 onClick = {
                     navController.navigate(item.route) {
-                        navController.graph.startDestinationRoute?.let { screenRoute ->
-                            popUpTo(screenRoute) {
-                                saveState = true
-                            }
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
                         }
                         launchSingleTop = true
                         restoreState = true

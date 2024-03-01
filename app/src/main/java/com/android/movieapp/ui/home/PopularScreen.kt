@@ -1,10 +1,15 @@
 package com.android.movieapp.ui.home
 
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContent
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.ExperimentalMaterialApi
@@ -16,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,18 +55,16 @@ import kotlinx.coroutines.flow.onEach
 @Composable
 fun PopularScreen(navController: NavController) {
     val navControllerHome = rememberNavController()
-    Scaffold(bottomBar = {
-        BottomNavigationView(
-            navController = navControllerHome,
-            items = BottomNavigationScreen.entries.filter { it.type == TypeScreen.POPULAR }
-        )
-    }) {
+    Scaffold(
+        bottomBar = {
+            BottomNavigationView(
+                navController = navControllerHome,
+                items = BottomNavigationScreen.entries.filter { it.type == TypeScreen.POPULAR }
+            )
+        }
+    ) {
         NavHost(
-            modifier = Modifier
-                .padding(
-                    top = 12.dp,
-                    bottom = it.calculateBottomPadding() - 32.dp
-                ),
+            modifier = Modifier.padding(it),
             navController = navControllerHome,
             startDestination = BottomNavigationScreen.TvScreen.route
         ) {
@@ -125,7 +129,7 @@ fun BaseHomeScreen(navController: NavController, viewModel: BaseSearchViewModel<
 
     Column {
         SearchBar(
-            modifier = Modifier.padding(horizontal = 12.dp),
+            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 6.dp),
             hint = values.second,
             value = query ?: "",
         ) {
@@ -137,10 +141,9 @@ fun BaseHomeScreen(navController: NavController, viewModel: BaseSearchViewModel<
         ) {
             LazyVerticalGrid(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = 32.dp),
+                    .fillMaxSize(),
                 columns = GridCells.Fixed(getColumnCount()),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp)
             ) {
                 items(values.first.itemCount) { index ->
                     values.first[index]?.let { item ->
