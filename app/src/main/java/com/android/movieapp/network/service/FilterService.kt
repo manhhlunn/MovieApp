@@ -23,7 +23,7 @@ class FilterService(private val networkService: NetworkService) {
             "include_video" to true,
             "language" to language,
             "page" to page,
-            "sort_by" to sortBy.value,
+            "sort_by" to sortBy.getValue(true),
             "with_origin_country" to withOriginCountry,
             "with_original_language" to withOriginLanguage,
             "with_genres" to withGenres.joinToString(","),
@@ -52,7 +52,7 @@ class FilterService(private val networkService: NetworkService) {
             "include_adult" to true,
             "language" to language,
             "page" to page,
-            "sort_by" to sortBy.value,
+            "sort_by" to sortBy.getValue(false),
             "with_origin_country" to withOriginCountry,
             "with_original_language" to withOriginLanguage,
             "with_genres" to withGenres.joinToString(","),
@@ -65,17 +65,33 @@ class FilterService(private val networkService: NetworkService) {
     )
 }
 
-enum class SortValue(val display: String, val value: String) {
-    POPULAR_DESC("Popular(Desc)", "popularity.desc"),
-    POPULAR_ASC("Popular(Asc)", "popularity.asc"),
-    REVENUE_DESC("Revenue(Desc)", "revenue.desc"),
-    REVENUE_ASC("Revenue(Asc)", "revenue.asc"),
-    PRIMARY_RELEASE_DATE_DESC("Date(Desc)", "primary_release_date.desc"),
-    PRIMARY_RELEASE_DATE_ASC("Date(Asc)", "primary_release_date.asc"),
-    RATING_DESC("Rating(Desc)", "vote_average.desc"),
-    RATING_ASC("Rating(Asc)", "vote_average.asc"),
-    VOTE_DESC("Vote(Desc)", "vote_count.desc"),
-    VOTE_ASC("Vote(Asc)", "vote_count.asc"),
+enum class SortValue(val display: String) {
+    POPULAR_DESC("Popular (↓)"),
+    POPULAR_ASC("Popular (↑)"),
+    REVENUE_DESC("Revenue (↓)"),
+    REVENUE_ASC("Revenue (↑)"),
+    DATE_DESC("Date (↓)"),
+    DATE_ASC("Date (↑)"),
+    RATING_DESC("Rating (↓)"),
+    RATING_ASC("Rating (↑)"),
+    VOTE_DESC("Vote (↓)"),
+    VOTE_ASC("Vote (↑)");
+
+    fun getValue(isMovie: Boolean): String {
+        return when(this) {
+            POPULAR_DESC -> "popularity.desc"
+            POPULAR_ASC -> "popularity.asc"
+            REVENUE_DESC -> "revenue.desc"
+            REVENUE_ASC -> "revenue.asc"
+            DATE_DESC -> if (isMovie) "primary_release_date.desc" else "first_air_date.desc"
+            DATE_ASC -> if (isMovie) "primary_release_date.asc" else "first_air_date.asc"
+            RATING_DESC -> "vote_average.desc"
+            RATING_ASC -> "vote_average.asc"
+            VOTE_DESC -> "vote_count.desc"
+            VOTE_ASC -> "vote_count.asc"
+        }
+    }
+
 }
 
 fun List<Int>.getMinDate(): String {
