@@ -1,16 +1,10 @@
 package com.android.movieapp.ui.detail
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -31,9 +25,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
@@ -61,9 +52,7 @@ import com.android.movieapp.network.Api
 import com.android.movieapp.repository.ConfigureRepository
 import com.android.movieapp.repository.FavoriteRepository
 import com.android.movieapp.repository.TvRepository
-import com.android.movieapp.ui.ext.ProgressiveGlowingImage
-import com.android.movieapp.ui.ext.ifNull
-import com.android.movieapp.ui.ext.ifNullOrEmpty
+import com.android.movieapp.ui.ext.getObject
 import com.android.movieapp.ui.ext.makeGPTSummary
 import com.android.movieapp.ui.ext.makeGPTTranslate
 import com.android.movieapp.ui.ext.makeGenerativeModelChatSummary
@@ -327,7 +316,7 @@ fun TvDetailScreen(
                         DetailImage(item) {
                             navController.navigate(
                                 NavScreen.PreviewImageDialog.navigateWithArgument(
-                                    it
+                                    it.filePath ?: return@DetailImage
                                 )
                             )
                         }
@@ -590,7 +579,7 @@ class TvDetailViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            savedStateHandle.get<Tv>(NavScreen.TvDetailScreen.TV_DETAIL)?.let { tv ->
+            savedStateHandle.getObject<Tv>(NavScreen.TvDetailScreen.TV_DETAIL)?.let { tv ->
                 _uiState.update {
                     it.copy(
                         tv = tv
@@ -642,85 +631,6 @@ data class UIStateTvDetail(
     val actionState: List<Boolean> = Action.entries.map { false }
 )
 
-@Composable
-private fun TvFields(tv: Tv, detail: TvDetail?, modifier: Modifier) {
-    val default = stringResource(id = R.string.default_value)
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            ValueField(
-                stringResource(R.string.first_air_date),
-                tv.firstAirDate.ifNullOrEmpty(default)
-            )
-            ValueField(stringResource(R.string.vote_average), tv.voteAverage.ifNull(default))
-            ValueField(stringResource(R.string.votes), tv.voteCount.ifNull(default))
-            ValueField(stringResource(R.string.popularity), tv.popularity.ifNull(default))
-        }
-        detail?.let {
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = modifier) {
-                ValueField(stringResource(R.string.runtime), it.episodeRunTime.toString())
-                ValueField(stringResource(R.string.status), it.status ?: default)
-                ValueField(stringResource(R.string.type), it.type ?: default)
-            }
-        }
-    }
-}
-
-@Composable
-fun TvSeason(
-    season: TvDetail.Season,
-    overviewClick: () -> Unit
-) {
-    Row {
-        Column(
-            modifier = Modifier.width(180.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            ProgressiveGlowingImage(
-                Api.getPosterPath(season.posterPath),
-                true
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "${season.name}",
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "(${season.airDate ?: stringResource(id = R.string.default_value)})",
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(1.dp)
-            )
-            Text(
-                text = "${season.episodeCount ?: stringResource(id = R.string.default_value)} episode",
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(1.dp)
-            )
-        }
-        if (!season.overview.isNullOrEmpty()) {
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = season.overview,
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                modifier = Modifier
-                    .widthIn(max = 300.dp)
-                    .padding(2.dp)
-                    .clickable {
-                        overviewClick.invoke()
-                    }
-            )
-        }
-    }
-}
 
 
 

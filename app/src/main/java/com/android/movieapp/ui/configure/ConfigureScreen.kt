@@ -1,40 +1,16 @@
 package com.android.movieapp.ui.configure
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.painter.ColorPainter
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,13 +19,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import coil.compose.AsyncImagePainter
-import coil.compose.rememberAsyncImagePainter
 import com.android.movieapp.R
 import com.android.movieapp.ds.DataStoreManager
 import com.android.movieapp.models.network.CountryItemResponse
 import com.android.movieapp.models.network.LanguageItemResponse
 import com.android.movieapp.repository.ConfigureRepository
+import com.android.movieapp.ui.ext.SearchBar
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -129,151 +104,6 @@ fun ConfigureScreen(
 }
 
 
-@Composable
-fun LanguageItemView(
-    value: LanguageItemResponse,
-    modifier: Modifier = Modifier,
-    onSelect: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clickable {
-                onSelect()
-            }) {
-        val painter = rememberAsyncImagePainter(
-            model = value.iso6391.languageIcon(),
-            error = ColorPainter(MaterialTheme.colorScheme.onSecondary)
-        )
-        Image(
-            painter = painter,
-            contentDescription = "Language icon",
-            contentScale = ContentScale.FillWidth,
-            modifier = Modifier
-                .width(40.dp)
-                .then(
-                    (painter.state as? AsyncImagePainter.State.Success)
-                        ?.painter
-                        ?.intrinsicSize
-                        ?.let { intrinsicSize ->
-                            val ratio = intrinsicSize.width / intrinsicSize.height
-                            Modifier
-                                .aspectRatio(ratio)
-                                .shadow(4.dp)
-                        } ?: Modifier.aspectRatio(2f)
-                ),
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = value.englishName + if (value.name.isNullOrEmpty()) "" else " (${value.name})",
-            maxLines = 1,
-            fontWeight = FontWeight.Bold,
-            overflow = TextOverflow.Ellipsis,
-            fontSize = 16.sp,
-        )
-    }
-}
-
-@Composable
-fun RegionItemView(
-    value: CountryItemResponse,
-    modifier: Modifier = Modifier,
-    onSelect: () -> Unit
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clickable {
-                onSelect()
-            }) {
-        val painter = rememberAsyncImagePainter(
-            model = value.iso31661.countryIcon(),
-            error = ColorPainter(MaterialTheme.colorScheme.onSecondary)
-        )
-        Image(
-            painter = painter,
-            contentDescription = "Language icon",
-            contentScale = ContentScale.FillWidth,
-            modifier = Modifier
-                .width(40.dp)
-                .then(
-                    (painter.state as? AsyncImagePainter.State.Success)
-                        ?.painter
-                        ?.intrinsicSize
-                        ?.let { intrinsicSize ->
-                            val ratio = intrinsicSize.width / intrinsicSize.height
-                            Modifier
-                                .aspectRatio(ratio)
-                                .shadow(4.dp)
-                        } ?: Modifier.aspectRatio(2f)
-                ),
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = value.englishName + if (value.nativeName.isNullOrEmpty()) "" else " (${value.nativeName})",
-            maxLines = 1,
-            fontWeight = FontWeight.Bold,
-            overflow = TextOverflow.Ellipsis,
-            fontSize = 16.sp,
-        )
-    }
-}
-
-@Composable
-fun SearchBar(
-    modifier: Modifier = Modifier,
-    hint: String = "",
-    value: String = "",
-    onSearch: (String) -> Unit = {},
-) {
-    var isHintDisplayed by rememberSaveable { mutableStateOf(hint != "") }
-
-    Box(modifier = modifier) {
-        BasicTextField(
-            value = value,
-            onValueChange = {
-                onSearch.invoke(it)
-            },
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            maxLines = 1,
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(2.dp, RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.onPrimary)
-                .padding(start = 48.dp, top = 12.dp, bottom = 12.dp, end = 24.dp)
-                .onFocusChanged {
-                    isHintDisplayed = (!it.hasFocus && value.isEmpty())
-                },
-            textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.primary)
-        )
-
-        Icon(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(horizontal = 16.dp),
-            painter = rememberVectorPainter(Icons.Default.Search),
-            contentDescription = "Search icon"
-        )
-
-        if (isHintDisplayed) {
-            Text(
-                text = hint,
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.padding(
-                    start = 48.dp,
-                    top = 12.dp,
-                    bottom = 12.dp,
-                    end = 24.dp
-                )
-            )
-        }
-    }
-}
-
-
 abstract class ConfigureViewModel<T : Any>(
     private val configureRepository: ConfigureRepository,
     private val dataStoreManager: DataStoreManager
@@ -347,8 +177,6 @@ class CountryViewModel @Inject constructor(
     }
 }
 
-fun String.languageIcon() = "https://www.unknown.nu/flags/images/$this-100"
-fun String.countryIcon() = "https://flagcdn.com/w80/${this.lowercase()}.png"
 
 data class UIStateConfigureScreen<T>(
     var currentValues: List<T>? = null,

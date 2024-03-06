@@ -1,4 +1,4 @@
-package com.android.movieapp.ui.home
+package com.android.movieapp.ui.home.widget
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes

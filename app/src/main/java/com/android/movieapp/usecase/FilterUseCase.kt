@@ -11,9 +11,9 @@ import com.android.movieapp.repository.ConfigureRepository
 import com.android.movieapp.repository.FilterRepository
 import com.android.movieapp.repository.MovieRepository
 import com.android.movieapp.repository.TvRepository
-import com.android.movieapp.ui.configure.countryIcon
-import com.android.movieapp.ui.configure.languageIcon
 import com.android.movieapp.ui.ext.DropdownItem
+import com.android.movieapp.ui.ext.countryIcon
+import com.android.movieapp.ui.ext.languageIcon
 import com.android.movieapp.ui.ext.sub
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

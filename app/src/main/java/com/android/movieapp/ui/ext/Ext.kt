@@ -4,43 +4,20 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.net.Uri
-import android.os.Build
-import android.os.Handler
 import android.util.Log
-import android.view.View
-import androidx.annotation.OptIn
+import androidx.activity.ComponentActivity
 import androidx.browser.customtabs.CustomTabColorSchemeParams
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
-import androidx.media3.common.C
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.DefaultLoadControl
-import androidx.media3.exoplayer.DefaultRenderersFactory
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.Renderer
-import androidx.media3.exoplayer.audio.AudioRendererEventListener
-import androidx.media3.exoplayer.metadata.MetadataOutput
-import androidx.media3.exoplayer.text.TextOutput
-import androidx.media3.exoplayer.text.TextRenderer
-import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import androidx.media3.exoplayer.video.VideoRendererEventListener
+import androidx.lifecycle.SavedStateHandle
 import com.android.movieapp.network.Api
 import com.android.movieapp.network.service.SSLTrustManager
-import com.android.movieapp.ui.media.renderer.CustomTextRenderer
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.generationConfig
+import com.google.gson.Gson
 import com.mannan.translateapi.Language
 import com.mannan.translateapi.TranslateAPI
 import kotlinx.coroutines.Dispatchers
@@ -252,23 +229,6 @@ fun Context.findActivity(): Activity? {
     return null
 }
 
-@Composable
-fun OnLifecycleEvent(onEvent: (owner: LifecycleOwner, event: Lifecycle.Event) -> Unit) {
-    val eventHandler = rememberUpdatedState(onEvent)
-    val lifecycleOwner = rememberUpdatedState(LocalLifecycleOwner.current)
-
-    DisposableEffect(lifecycleOwner.value) {
-        val lifecycle = lifecycleOwner.value.lifecycle
-        val observer = LifecycleEventObserver { owner, event ->
-            eventHandler.value(owner, event)
-        }
-
-        lifecycle.addObserver(observer)
-        onDispose {
-            lifecycle.removeObserver(observer)
-        }
-    }
-}
 
 fun Long.makeTimeString(): String {
     if (this < 0) return ""
@@ -326,66 +286,6 @@ fun Double.roundOffDecimal(): String {
     return df.format(this)
 }
 
-@UnstableApi
-fun ExoPlayer.isEnableSelect(type: Int): Boolean {
-    var count = 0
-    for (group in currentTracks.groups) {
-        if (group.type == type) {
-            count += group.mediaTrackGroup.length
-        }
-    }
-    return count > 0
-}
-
-@OptIn(UnstableApi::class)
-internal fun Context.getRenderers(
-    eventHandler: Handler,
-    videoRendererEventListener: VideoRendererEventListener,
-    audioRendererEventListener: AudioRendererEventListener,
-    textRendererOutput: TextOutput,
-    metadataRendererOutput: MetadataOutput,
-    subtitleOffset: Long,
-    onTextRendererChange: (CustomTextRenderer) -> Unit,
-): Array<Renderer> {
-    return DefaultRenderersFactory(this)
-        .createRenderers(
-            eventHandler,
-            videoRendererEventListener,
-            audioRendererEventListener,
-            textRendererOutput,
-            metadataRendererOutput
-        ).map {
-            if (it is TextRenderer) {
-                CustomTextRenderer(
-                    offset = subtitleOffset,
-                    output = textRendererOutput,
-                    outputLooper = eventHandler.looper,
-                ).also(onTextRendererChange)
-            } else it
-        }.toTypedArray()
-}
-
-@OptIn(UnstableApi::class)
-fun Context.buildExoplayer(): ExoPlayer.Builder {
-    val loadControl = DefaultLoadControl.Builder()
-        .setBufferDurationsMs(32 * 1024, 64 * 1024, 10 * 1024, 10 * 1024)
-        .build()
-
-    return ExoPlayer.Builder(this).apply {
-        setTrackSelector(DefaultTrackSelector(this@buildExoplayer).apply {
-            setParameters(
-                buildUponParameters()
-                    .setPreferredTextLanguage("vi")
-                    .setForceHighestSupportedBitrate(true)
-            )
-        })
-        setHandleAudioBecomingNoisy(true)
-        setLoadControl(loadControl)
-        setSeekBackIncrementMs(10000L)
-        setSeekForwardIncrementMs(10000L)
-        setWakeMode(C.WAKE_MODE_NETWORK)
-    }
-}
 
 fun OkHttpClient.Builder.ignoreAllSSLErrors(): OkHttpClient.Builder {
     val naiveTrustManager = SSLTrustManager()
@@ -399,4 +299,29 @@ fun OkHttpClient.Builder.ignoreAllSSLErrors(): OkHttpClient.Builder {
     hostnameVerifier { _, _ -> true }
     return this
 }
+
+inline fun <reified T : Any> SavedStateHandle.getObject(key: String): T? {
+    return get<String>(key)?.let { Gson().fromJson(it, T::class.java) }
+}
+
+
+@Composable
+inline fun <reified Activity : ComponentActivity> Context.getActivity(): Activity {
+    val activity = when (this) {
+        is Activity -> this
+        else -> {
+            var context = this
+            while (context is ContextWrapper) {
+                context = context.baseContext
+                if (context is Activity) return context
+            }
+            null
+        }
+    } ?: error("No activity found")
+
+    return activity
+}
+
+fun String.languageIcon() = "https://www.unknown.nu/flags/images/$this-100"
+fun String.countryIcon() = "https://flagcdn.com/w80/${this.lowercase()}.png"
 

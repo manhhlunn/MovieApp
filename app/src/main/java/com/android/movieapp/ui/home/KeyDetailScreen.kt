@@ -36,7 +36,10 @@ import com.android.movieapp.network.Api
 import com.android.movieapp.network.service.SortValue
 import com.android.movieapp.repository.FilterRepository
 import com.android.movieapp.ui.ext.getColumnCount
+import com.android.movieapp.ui.ext.getObject
 import com.android.movieapp.ui.ext.roundOffDecimal
+import com.android.movieapp.ui.home.widget.MovieItemView
+import com.android.movieapp.ui.home.widget.TopAppBarDetail
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,7 +49,6 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
-
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -132,11 +134,10 @@ fun KeyDetailScreen(navController: NavController, viewModel: KeyDetailViewModel 
 class KeyDetailViewModel @Inject constructor(
     private val filterRepository: FilterRepository,
     savedStateHandle: SavedStateHandle
-) :
-    ViewModel() {
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
-        savedStateHandle.get<NavScreen.KeyDetailScreen.KeyDetail>(NavScreen.KeyDetailScreen.KEY_DETAIL),
+        savedStateHandle.getObject<NavScreen.KeyDetailScreen.KeyDetail>(NavScreen.KeyDetailScreen.KEY_DETAIL),
     )
     val uiState: StateFlow<NavScreen.KeyDetailScreen.KeyDetail?> = _uiState
     private var currentFilter: NavScreen.KeyDetailScreen.KeyDetail? = null

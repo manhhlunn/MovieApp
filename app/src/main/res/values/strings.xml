@@ -58,4 +58,7 @@
     <string name="speed_x">Speed: %1$sx</string>
     <string name="offset_s">Offset: %1$ss</string>
     <string name="zoom_percent">Zoom: %1$s\%%</string>
+    <string name="pause">Pause</string>
+    <string name="play">Play</string>
+    <string name="close">Close</string>
 </resources>

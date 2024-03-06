@@ -1,15 +1,10 @@
 package com.android.movieapp.ui.home
 
-import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContent
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.ExperimentalMaterialApi
@@ -21,7 +16,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -42,9 +36,15 @@ import com.android.movieapp.models.entities.Movie
 import com.android.movieapp.models.entities.Person
 import com.android.movieapp.models.entities.Tv
 import com.android.movieapp.network.Api
-import com.android.movieapp.ui.configure.SearchBar
+import com.android.movieapp.ui.ext.SearchBar
 import com.android.movieapp.ui.ext.getColumnCount
 import com.android.movieapp.ui.ext.roundOffDecimal
+import com.android.movieapp.ui.home.widget.BottomNavigationScreen
+import com.android.movieapp.ui.home.widget.BottomNavigationView
+import com.android.movieapp.ui.home.widget.HomeDrawerNavigation
+import com.android.movieapp.ui.home.widget.MovieItemView
+import com.android.movieapp.ui.home.widget.PersonItemView
+import com.android.movieapp.ui.home.widget.TypeScreen
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow

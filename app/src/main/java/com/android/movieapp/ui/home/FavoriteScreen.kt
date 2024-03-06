@@ -38,6 +38,12 @@ import com.android.movieapp.models.entities.WatchedTv
 import com.android.movieapp.network.Api
 import com.android.movieapp.ui.ext.getColumnCount
 import com.android.movieapp.ui.ext.roundOffDecimal
+import com.android.movieapp.ui.home.widget.BottomNavigationScreen
+import com.android.movieapp.ui.home.widget.BottomNavigationView
+import com.android.movieapp.ui.home.widget.HomeDrawerNavigation
+import com.android.movieapp.ui.home.widget.MovieItemView
+import com.android.movieapp.ui.home.widget.PersonItemView
+import com.android.movieapp.ui.home.widget.TypeScreen
 
 
 @Composable

@@ -2,20 +2,13 @@ package com.android.movieapp.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
@@ -32,7 +25,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -53,9 +45,15 @@ import com.android.movieapp.models.network.HomePageData
 import com.android.movieapp.models.network.OMovie
 import com.android.movieapp.models.network.SearchResultItem
 import com.android.movieapp.repository.MediaRepository
-import com.android.movieapp.ui.configure.SearchBar
+import com.android.movieapp.ui.ext.SearchBar
 import com.android.movieapp.ui.ext.getColumnCount
 import com.android.movieapp.ui.ext.ifNull
+import com.android.movieapp.ui.home.widget.BottomNavigationScreen
+import com.android.movieapp.ui.home.widget.BottomNavigationView
+import com.android.movieapp.ui.home.widget.FilterLine
+import com.android.movieapp.ui.home.widget.HomeDrawerNavigation
+import com.android.movieapp.ui.home.widget.MovieItemView
+import com.android.movieapp.ui.home.widget.TypeScreen
 import com.android.movieapp.ui.media.FilterCategory
 import com.android.movieapp.ui.media.FilterCountry
 import com.android.movieapp.ui.media.MediaType
@@ -392,39 +390,6 @@ fun SuperStreamMovieScreen(navController: NavController, viewModel: SuperStreamM
                 state = pullRefreshState,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
-        }
-    }
-}
-
-@Composable
-fun <T> FilterLine(
-    name: String,
-    values: List<T>,
-    itemContent: @Composable (T, Int) -> Unit,
-) {
-    if (values.isNotEmpty()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, top = 4.dp, bottom = 4.dp),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    text = "$name : ",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                    values.forEachIndexed { index, t ->
-                        Spacer(modifier = Modifier.width(8.dp))
-                        itemContent.invoke(t, index)
-                    }
-                }
-            }
         }
     }
 }

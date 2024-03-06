@@ -1,89 +1,14 @@
 package com.android.movieapp.ui.home
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModel
 import androidx.paging.PagingData
 import com.android.movieapp.models.entities.Movie
 import com.android.movieapp.repository.FavoriteRepository
-import com.android.movieapp.ui.ext.ProgressiveGlowingImage
-import com.android.movieapp.ui.theme.AppYellow
 import com.android.movieapp.usecase.FilterUseCase
 import com.android.movieapp.usecase.PopularUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
-
-
-@Composable
-fun MovieItemView(
-    modifier: Modifier = Modifier,
-    posterUrl: String,
-    bottomRight: String?,
-    title: String,
-    onExpandDetails: () -> Unit
-) {
-    Column(modifier = modifier
-        .padding(4.dp)
-        .clickable {
-            onExpandDetails.invoke()
-        }) {
-
-        Box {
-            ProgressiveGlowingImage(
-                url = posterUrl,
-                glow = true
-            )
-            if (!bottomRight.isNullOrEmpty()) Text(
-                text = bottomRight,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    shadow = Shadow(
-                        color = Color.Black
-                    )
-                ),
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                color = AppYellow,
-                modifier = Modifier
-                    .padding(4.dp)
-                    .background(Color.White, shape = RoundedCornerShape(8.dp))
-                    .padding(horizontal = 4.dp, vertical = 0.dp)
-                    .align(Alignment.BottomEnd)
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                shadow = Shadow(
-                    color = Color.Black,
-                    offset = Offset(0f, 0f),
-                    blurRadius = 1f
-                )
-            ),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
 
 
 @HiltViewModel

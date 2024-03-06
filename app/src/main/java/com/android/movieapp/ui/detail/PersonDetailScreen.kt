@@ -1,14 +1,8 @@
 package com.android.movieapp.ui.detail
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -23,15 +17,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.constraintlayout.compose.ConstraintLayout
@@ -52,15 +43,12 @@ import com.android.movieapp.models.network.PersonDetail
 import com.android.movieapp.network.Api
 import com.android.movieapp.repository.FavoriteRepository
 import com.android.movieapp.repository.PersonRepository
-import com.android.movieapp.ui.ext.CircleGlowingImage
-import com.android.movieapp.ui.ext.ifNull
-import com.android.movieapp.ui.ext.ifNullOrEmpty
+import com.android.movieapp.ui.ext.getObject
 import com.android.movieapp.ui.ext.makeWikiRequest
 import com.android.movieapp.ui.ext.openChromeCustomTab
 import com.android.movieapp.ui.ext.roundOffDecimal
-import com.android.movieapp.ui.ext.springAnimation
 import com.android.movieapp.ui.ext.translateToVi
-import com.android.movieapp.ui.home.MovieItemView
+import com.android.movieapp.ui.home.widget.MovieItemView
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -232,7 +220,11 @@ fun PersonDetailScreen(
                             title = item.name.toString(),
                             bottomRight = item.voteAverage?.roundOffDecimal()
                         ) {
-                            navController.navigate(NavScreen.TvDetailScreen.navigateWithArgument(item))
+                            navController.navigate(
+                                NavScreen.TvDetailScreen.navigateWithArgument(
+                                    item
+                                )
+                            )
                         }
                     },
                     modifier = Modifier.constrainAs(tvs) {
@@ -248,7 +240,7 @@ fun PersonDetailScreen(
                         DetailImage(item) {
                             navController.navigate(
                                 NavScreen.PreviewImageDialog.navigateWithArgument(
-                                    it
+                                    it.filePath ?: return@DetailImage
                                 )
                             )
                         }
@@ -293,7 +285,7 @@ class PersonDetailViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            savedStateHandle.get<Person>(NavScreen.PersonDetailScreen.PERSON_DETAIL)
+            savedStateHandle.getObject<Person>(NavScreen.PersonDetailScreen.PERSON_DETAIL)
                 ?.let { person ->
                     person.id?.let { id ->
                         val detail = async { personRepository.getPersonDetail(id) }
@@ -367,44 +359,6 @@ data class UIStatePersonDetail(
     val images: List<ImageResponse> = emptyList(),
     val ids: List<SocialData> = emptyList()
 )
-
-@Composable
-private fun PersonFields(person: PersonDetail, modifier: Modifier) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            val default = stringResource(id = R.string.default_value)
-            ValueField(stringResource(R.string.birth_day), person.birthday.ifNullOrEmpty(default))
-            ValueField(stringResource(R.string.death_day), person.deathday.ifNullOrEmpty(default))
-            ValueField(stringResource(R.string.popularity), person.popularity.ifNull(default))
-        }
-        person.placeOfBirth?.let {
-            Spacer(modifier = Modifier.height(16.dp))
-            ValueField(stringResource(R.string.place_of_birth), it)
-        }
-    }
-}
-
-@Composable
-fun PersonProfile(url: String, modifier: Modifier) {
-    val isScaled = remember { mutableStateOf(false) }
-    val scale = animateFloatAsState(
-        targetValue = if (isScaled.value) 1.6f else 1f,
-        animationSpec = springAnimation,
-        label = "scale"
-    ).value
-
-    Box(
-        modifier = modifier
-            .scale(scale)
-            .clickable { isScaled.value = !isScaled.value },
-    ) {
-        CircleGlowingImage(
-            url,
-            true
-        )
-    }
-}
-
 
 
 
