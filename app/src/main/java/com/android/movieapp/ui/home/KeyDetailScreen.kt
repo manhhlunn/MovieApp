@@ -136,7 +136,7 @@ class KeyDetailViewModel @Inject constructor(
     ViewModel() {
 
     private val _uiState = MutableStateFlow(
-        savedStateHandle.get<NavScreen.KeyDetailScreen.KeyDetail>(NavScreen.KeyDetailScreen.keyDetail),
+        savedStateHandle.get<NavScreen.KeyDetailScreen.KeyDetail>(NavScreen.KeyDetailScreen.KEY_DETAIL),
     )
     val uiState: StateFlow<NavScreen.KeyDetailScreen.KeyDetail?> = _uiState
     private var currentFilter: NavScreen.KeyDetailScreen.KeyDetail? = null

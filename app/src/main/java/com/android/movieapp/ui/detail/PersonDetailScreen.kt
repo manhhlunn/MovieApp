@@ -293,7 +293,7 @@ class PersonDetailViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            savedStateHandle.get<Person>(NavScreen.PersonDetailScreen.personDetail)
+            savedStateHandle.get<Person>(NavScreen.PersonDetailScreen.PERSON_DETAIL)
                 ?.let { person ->
                     person.id?.let { id ->
                         val detail = async { personRepository.getPersonDetail(id) }

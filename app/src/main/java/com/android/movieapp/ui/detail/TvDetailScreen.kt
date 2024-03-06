@@ -590,7 +590,7 @@ class TvDetailViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            savedStateHandle.get<Tv>(NavScreen.TvDetailScreen.tvDetail)?.let { tv ->
+            savedStateHandle.get<Tv>(NavScreen.TvDetailScreen.TV_DETAIL)?.let { tv ->
                 _uiState.update {
                     it.copy(
                         tv = tv

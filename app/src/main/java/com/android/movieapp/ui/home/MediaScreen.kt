@@ -76,17 +76,18 @@ import javax.inject.Inject
 
 @Composable
 fun MediaScreen(navController: NavController) {
-    val navControllerOMovie = rememberNavController()
+    val navControllerMedia = rememberNavController()
 
     Scaffold(bottomBar = {
         BottomNavigationView(
-            navController = navControllerOMovie,
+            navController = navControllerMedia,
             items = BottomNavigationScreen.entries.filter { it.type == TypeScreen.MEDIA }
         )
     }) {
         NavHost(
+            route = HomeDrawerNavigation.MediaScreen.route,
             modifier = Modifier.padding(it),
-            navController = navControllerOMovie,
+            navController = navControllerMedia,
             startDestination = BottomNavigationScreen.OMovieMediaScreen.route
         ) {
             composable(route = BottomNavigationScreen.OMovieMediaScreen.route) {

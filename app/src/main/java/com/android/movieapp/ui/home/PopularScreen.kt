@@ -54,18 +54,19 @@ import kotlinx.coroutines.flow.onEach
 
 @Composable
 fun PopularScreen(navController: NavController) {
-    val navControllerHome = rememberNavController()
+    val navControllerPopular = rememberNavController()
     Scaffold(
         bottomBar = {
             BottomNavigationView(
-                navController = navControllerHome,
+                navController = navControllerPopular,
                 items = BottomNavigationScreen.entries.filter { it.type == TypeScreen.POPULAR }
             )
         }
     ) {
         NavHost(
+            route = HomeDrawerNavigation.PopularScreen.route,
             modifier = Modifier.padding(it),
-            navController = navControllerHome,
+            navController = navControllerPopular,
             startDestination = BottomNavigationScreen.TvScreen.route
         ) {
             composable(route = BottomNavigationScreen.MovieScreen.route) {

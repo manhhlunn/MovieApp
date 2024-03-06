@@ -607,7 +607,7 @@ class MovieDetailViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            savedStateHandle.get<Movie>(NavScreen.MovieDetailScreen.movieDetail)?.let { movie ->
+            savedStateHandle.get<Movie>(NavScreen.MovieDetailScreen.MOVIE_DETAIL)?.let { movie ->
                 _uiState.update {
                     it.copy(
                         movie = movie

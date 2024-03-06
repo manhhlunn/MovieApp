@@ -51,8 +51,8 @@ fun FavoriteScreen(navController: NavController) {
         )
     }) {
         NavHost(
-            modifier = Modifier
-                .padding(it),
+            route = HomeDrawerNavigation.FavoriteScreen.route,
+            modifier = Modifier.padding(it),
             navController = navControllerFav,
             startDestination = BottomNavigationScreen.TvFavoriteScreen.route
         ) {
@@ -91,8 +91,8 @@ fun WatchedScreen(navController: NavController) {
         )
     }) {
         NavHost(
-            modifier = Modifier
-                .padding(it),
+            route = HomeDrawerNavigation.WatchedScreen.route,
+            modifier = Modifier.padding(it),
             navController = navControllerWatched,
             startDestination = BottomNavigationScreen.TvWatchedScreen.route
         ) {

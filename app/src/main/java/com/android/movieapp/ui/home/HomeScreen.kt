@@ -45,6 +45,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.android.movieapp.NavScreen
 import com.android.movieapp.R
 import com.android.movieapp.ui.configure.ConfigureScreen
 import com.android.movieapp.ui.configure.CountryViewModel
@@ -74,6 +75,7 @@ fun HomeScreen(navController: NavController) {
             }
         ) {
             NavHost(
+                route = NavScreen.HomeScreen.route,
                 modifier = Modifier.padding(it),
                 navController = navControllerHome,
                 startDestination = HomeDrawerNavigation.PopularScreen.route

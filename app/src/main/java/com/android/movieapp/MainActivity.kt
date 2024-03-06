@@ -32,12 +32,10 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -142,12 +140,12 @@ class MainActivity : ComponentActivity() {
             val systemTheme = isSystemInDarkTheme()
             val isDarkTheme = remember { mutableStateOf(systemTheme) }
             val navController = rememberNavController()
-            navController.addOnDestinationChangedListener { _, destination, _ ->
-                viewModel.setPlayerModeState(
-                    destination.route == NavScreen.SuperStreamMovieDetailScreen.routeWithArgument
-                            || destination.route == NavScreen.OMovieDetailScreen.routeWithArgument
-                )
-            }
+//            navController.addOnDestinationChangedListener { _, destination, _ ->
+//                viewModel.setPlayerModeState(
+//                    destination.route == NavScreen.SuperStreamMovieDetailScreen.routeWithArgument
+//                            || destination.route == NavScreen.OMovieDetailScreen.routeWithArgument
+//                )
+//            }
 
             CompositionLocalProvider(LocalDarkTheme provides isDarkTheme) {
                 CompositionLocalProvider(LocalIsInPipMode provides viewModel.isInPipMode) {
@@ -157,6 +155,7 @@ class MainActivity : ComponentActivity() {
                             color = MaterialTheme.colorScheme.background,
                         ) {
                             NavHost(
+                                route = NavScreen.Root.route,
                                 navController = navController,
                                 startDestination = NavScreen.HomeScreen.route
                             ) {
@@ -165,109 +164,107 @@ class MainActivity : ComponentActivity() {
                                     HomeScreen(navController = navController)
                                 }
 
-                                composable(
-                                    route = NavScreen.MovieDetailScreen.routeWithArgument,
-                                    arguments = listOf(
-                                        navArgument(NavScreen.MovieDetailScreen.movieDetail) {
-                                            type = NavScreen.MovieDetailScreen.MovieDetailType()
-                                        })
-                                ) {
-                                    MovieDetailScreen(
-                                        navController = navController
-                                    )
-                                }
-
-                                composable(
-                                    route = NavScreen.OMovieDetailScreen.routeWithArgument,
-                                    arguments = listOf(
-                                        navArgument(NavScreen.OMovieDetailScreen.slug) {
-                                            type = NavType.StringType
-                                        })
-                                ) {
-                                    OMovieDetailScreen(
-                                        navController = navController,
-                                        viewModel = hiltViewModel()
-                                    )
-                                }
-
-                                composable(
-                                    route = NavScreen.SuperStreamMovieDetailScreen.routeWithArgument,
-                                    arguments = listOf(
-                                        navArgument(NavScreen.SuperStreamMovieDetailScreen.superStreamMovie) {
-                                            type =
-                                                NavScreen.SuperStreamMovieDetailScreen.MyMovieDetailType()
-                                        })
-                                ) {
-                                    SuperStreamDetailScreen(
-                                        navController = navController,
-                                        viewModel = hiltViewModel()
-                                    )
-                                }
-
-                                composable(
-                                    route = NavScreen.TvDetailScreen.routeWithArgument,
-                                    arguments = listOf(
-                                        navArgument(NavScreen.TvDetailScreen.tvDetail) {
-                                            type = NavScreen.TvDetailScreen.TvDetailType()
-                                        })
-                                ) {
-                                    TvDetailScreen(
-                                        navController = navController
-                                    )
-                                }
-
-                                composable(
-                                    route = NavScreen.PersonDetailScreen.routeWithArgument,
-                                    arguments = listOf(
-                                        navArgument(NavScreen.PersonDetailScreen.personDetail) {
-                                            type = NavScreen.PersonDetailScreen.PersonDetailType()
-                                        })
-                                ) {
-                                    PersonDetailScreen(
-                                        navController = navController
-                                    )
-                                }
-
-                                composable(
-                                    route = NavScreen.KeyDetailScreen.routeWithArgument,
-                                    arguments = listOf(
-                                        navArgument(NavScreen.KeyDetailScreen.keyDetail) {
-                                            type = NavScreen.KeyDetailScreen.KeyDetailType()
-                                        })
-                                ) {
-                                    KeyDetailScreen(
-                                        navController = navController
-                                    )
-                                }
-
-                                dialog(
-                                    dialogProperties = DialogProperties(
-                                        usePlatformDefaultWidth = false // experimental
-                                    ),
-                                    route = NavScreen.PreviewImageDialog.routeWithArgument,
-                                    arguments = listOf(
-                                        navArgument(NavScreen.PreviewImageDialog.imageUrl) {
-                                            type = NavScreen.PreviewImageDialog.ImageType()
-                                        })
-                                ) {
-                                    val image =
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                            it.arguments?.getSerializable(
-                                                NavScreen.PreviewImageDialog.imageUrl,
-                                                ImageResponse::class.java
-                                            )
-                                        } else {
-                                            @Suppress("DEPRECATION")
-                                            it.arguments?.getSerializable(NavScreen.PreviewImageDialog.imageUrl) as? ImageResponse
-                                        }
-
-                                    image?.filePath?.let { path ->
-                                        ZoomableImage(
-                                            imageUrl = Api.getOriginalPath(path),
-                                            navController
-                                        )
-                                    } ?: navController.popBackStack()
-                                }
+//                                composable(
+//                                    route = NavScreen.MovieDetailScreen.routeWithArgument,
+//                                    arguments = listOf(
+//                                        navArgument(NavScreen.MovieDetailScreen.MOVIE_DETAIL) {
+//                                            type = NavScreen.MovieDetailScreen.MovieDetailType()
+//                                        })
+//                                ) {
+//                                    MovieDetailScreen(
+//                                        navController = navController
+//                                    )
+//                                }
+//
+//                                composable(
+//                                    route = NavScreen.OMovieDetailScreen.routeWithArgument,
+//                                    arguments = listOf(
+//                                        navArgument(NavScreen.OMovieDetailScreen.SLUG) {
+//                                            type = NavType.StringType
+//                                        })
+//                                ) {
+//                                    OMovieDetailScreen(
+//                                        navController = navController
+//                                    )
+//                                }
+//
+//                                composable(
+//                                    route = NavScreen.SuperStreamMovieDetailScreen.routeWithArgument,
+//                                    arguments = listOf(
+//                                        navArgument(NavScreen.SuperStreamMovieDetailScreen.SS_MOVIE) {
+//                                            type =
+//                                                NavScreen.SuperStreamMovieDetailScreen.MyMovieDetailType()
+//                                        })
+//                                ) {
+//                                    SuperStreamDetailScreen(
+//                                        navController = navController
+//                                    )
+//                                }
+//
+//                                composable(
+//                                    route = NavScreen.TvDetailScreen.routeWithArgument,
+//                                    arguments = listOf(
+//                                        navArgument(NavScreen.TvDetailScreen.TV_DETAIL) {
+//                                            type = NavScreen.TvDetailScreen.TvDetailType()
+//                                        })
+//                                ) {
+//                                    TvDetailScreen(
+//                                        navController = navController
+//                                    )
+//                                }
+//
+//                                composable(
+//                                    route = NavScreen.PersonDetailScreen.routeWithArgument,
+//                                    arguments = listOf(
+//                                        navArgument(NavScreen.PersonDetailScreen.PERSON_DETAIL) {
+//                                            type = NavScreen.PersonDetailScreen.PersonDetailType()
+//                                        })
+//                                ) {
+//                                    PersonDetailScreen(
+//                                        navController = navController
+//                                    )
+//                                }
+//
+//                                composable(
+//                                    route = NavScreen.KeyDetailScreen.routeWithArgument,
+//                                    arguments = listOf(
+//                                        navArgument(NavScreen.KeyDetailScreen.KEY_DETAIL) {
+//                                            type = NavScreen.KeyDetailScreen.KeyDetailType()
+//                                        })
+//                                ) {
+//                                    KeyDetailScreen(
+//                                        navController = navController
+//                                    )
+//                                }
+//
+//                                dialog(
+//                                    dialogProperties = DialogProperties(
+//                                        usePlatformDefaultWidth = false // experimental
+//                                    ),
+//                                    route = NavScreen.PreviewImageDialog.routeWithArgument,
+//                                    arguments = listOf(
+//                                        navArgument(NavScreen.PreviewImageDialog.IMAGE_URL) {
+//                                            type = NavScreen.PreviewImageDialog.ImageType()
+//                                        })
+//                                ) {
+//                                    val image =
+//                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//                                            it.arguments?.getSerializable(
+//                                                NavScreen.PreviewImageDialog.IMAGE_URL,
+//                                                ImageResponse::class.java
+//                                            )
+//                                        } else {
+//                                            @Suppress("DEPRECATION")
+//                                            it.arguments?.getSerializable(NavScreen.PreviewImageDialog.IMAGE_URL) as? ImageResponse
+//                                        }
+//
+//                                    image?.filePath?.let { path ->
+//                                        ZoomableImage(
+//                                            imageUrl = Api.getOriginalPath(path),
+//                                            navController
+//                                        )
+//                                    } ?: navController.popBackStack()
+//                                }
                             }
                         }
                     }
@@ -293,16 +290,18 @@ class MainActivityViewModel @Inject constructor() : ViewModel() {
 
 sealed class NavScreen(val route: String) {
 
+    data object Root : NavScreen("root")
+
     data object HomeScreen : NavScreen("home_screen")
 
     data object PreviewImageDialog : NavScreen("preview_image_dialog") {
 
-        const val imageUrl: String = "imageUrl"
+        const val IMAGE_URL: String = "imageUrl"
 
         val routeWithArgument: String
             get() = buildString {
                 append(route)
-                append("/{$imageUrl}")
+                append("/{$IMAGE_URL}")
             }
 
         fun navigateWithArgument(image: ImageResponse) = buildString {
@@ -334,7 +333,7 @@ sealed class NavScreen(val route: String) {
 
     data object KeyDetailScreen : NavScreen("key_detail_screen") {
 
-        const val keyDetail: String = "keyDetail"
+        const val KEY_DETAIL: String = "keyDetail"
 
         data class KeyDetail(
             val isMovie: Boolean = true,
@@ -347,7 +346,7 @@ sealed class NavScreen(val route: String) {
         val routeWithArgument: String
             get() = buildString {
                 append(route)
-                append("/{$keyDetail}")
+                append("/{$KEY_DETAIL}")
             }
 
         fun navigateWithArgument(detail: KeyDetail) = buildString {
@@ -378,12 +377,12 @@ sealed class NavScreen(val route: String) {
     }
 
     data object MovieDetailScreen : NavScreen("movie_detail_screen") {
-        const val movieDetail: String = "movieDetail"
+        const val MOVIE_DETAIL: String = "movieDetail"
 
         val routeWithArgument: String
             get() = buildString {
                 append(route)
-                append("/{$movieDetail}")
+                append("/{$MOVIE_DETAIL}")
             }
 
         fun navigateWithArgument(movie: Movie) = buildString {
@@ -414,12 +413,12 @@ sealed class NavScreen(val route: String) {
     }
 
     data object OMovieDetailScreen : NavScreen("o_movie_detail_screen") {
-        const val slug: String = "slug"
+        const val SLUG: String = "slug"
 
         val routeWithArgument: String
             get() = buildString {
                 append(route)
-                append("/{$slug}")
+                append("/{$SLUG}")
             }
 
         fun navigateWithArgument(slug: String) = buildString {
@@ -429,11 +428,11 @@ sealed class NavScreen(val route: String) {
     }
 
     data object SuperStreamMovieDetailScreen : NavScreen("super_stream_movie_detail_screen") {
-        const val superStreamMovie: String = "super_stream_movie"
+        const val SS_MOVIE: String = "super_stream_movie"
         val routeWithArgument: String
             get() = buildString {
                 append(route)
-                append("/{$superStreamMovie}")
+                append("/{$SS_MOVIE}")
             }
 
         fun navigateWithArgument(searchResultItem: SearchResultItem) = buildString {
@@ -463,12 +462,13 @@ sealed class NavScreen(val route: String) {
     }
 
     data object TvDetailScreen : NavScreen("tv_detail_screen") {
-        const val tvDetail: String = "tvDetail"
+
+        const val TV_DETAIL: String = "tvDetail"
 
         val routeWithArgument: String
             get() = buildString {
                 append(route)
-                append("/{$tvDetail}")
+                append("/{$TV_DETAIL}")
             }
 
         fun navigateWithArgument(tv: Tv) = buildString {
@@ -499,12 +499,13 @@ sealed class NavScreen(val route: String) {
     }
 
     data object PersonDetailScreen : NavScreen("person_detail_screen") {
-        const val personDetail: String = "personDetail"
+
+        const val PERSON_DETAIL: String = "personDetail"
 
         val routeWithArgument: String
             get() = buildString {
                 append(route)
-                append("/{$personDetail}")
+                append("/{$PERSON_DETAIL}")
             }
 
         fun navigateWithArgument(person: Person) = buildString {

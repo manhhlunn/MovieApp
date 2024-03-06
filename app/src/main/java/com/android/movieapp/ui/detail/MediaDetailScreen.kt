@@ -65,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -653,7 +654,7 @@ fun BottomSheetSelectTracks(bottomSheetState: BottomSheetState?, dismiss: () -> 
 @Composable
 fun OMovieDetailScreen(
     navController: NavController,
-    viewModel: OMovieDetailViewModel
+    viewModel: OMovieDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playerIndex by viewModel.playerIndex.collectAsStateWithLifecycle()
@@ -904,7 +905,7 @@ fun OMovieDetailScreen(
 @Composable
 fun SuperStreamDetailScreen(
     navController: NavController,
-    viewModel: SuperStreamDetailViewModel
+    viewModel: SuperStreamDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playerIndex by viewModel.playerIndex.collectAsStateWithLifecycle()
@@ -1210,7 +1211,7 @@ class OMovieDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             exoPlayer.addListener(this@OMovieDetailViewModel)
-            savedStateHandle.get<String>(NavScreen.OMovieDetailScreen.slug)?.let { slug ->
+            savedStateHandle.get<String>(NavScreen.OMovieDetailScreen.SLUG)?.let { slug ->
                 val response = when (val res = mediaRepository.getOMovieDetail(slug)) {
                     is NetworkResponse.Error -> mediaRepository.getOMovieDetail2(slug)
                     is NetworkResponse.Success -> res
@@ -1338,7 +1339,7 @@ class SuperStreamDetailViewModel @Inject constructor(
             exoPlayer.prepare()
             exoPlayer.addListener(this@SuperStreamDetailViewModel)
             val media =
-                savedStateHandle.get<SearchResultItem>(NavScreen.SuperStreamMovieDetailScreen.superStreamMovie)
+                savedStateHandle.get<SearchResultItem>(NavScreen.SuperStreamMovieDetailScreen.SS_MOVIE)
             if (media?.id != null) {
                 when (val response = getDetail(media.id, media.filmType)) {
                     is NetworkResponse.Error -> _error.send(response)
@@ -1375,9 +1376,12 @@ class SuperStreamDetailViewModel @Inject constructor(
 }
 
 
+
+@OptIn(UnstableApi::class)
 abstract class BaseMovieDetailViewModel : ViewModel(), Player.Listener {
 
     abstract val exoPlayer: ExoPlayer
+
     abstract val trackNameProvider: TrackNameProvider
 
     private val _mediaState: MutableStateFlow<MediaState> = MutableStateFlow(MediaState.Init)

@@ -70,18 +70,18 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun FilterScreen(navController: NavController) {
-    val navControllerFav = rememberNavController()
+    val navControllerFilter = rememberNavController()
 
     Scaffold(bottomBar = {
         BottomNavigationView(
-            navController = navControllerFav,
+            navController = navControllerFilter,
             items = BottomNavigationScreen.entries.filter { it.type == TypeScreen.FILTER }
         )
     }) {
         NavHost(
-            modifier = Modifier
-                .padding(it),
-            navController = navControllerFav,
+            route = HomeDrawerNavigation.FilterScreen.route,
+            modifier = Modifier.padding(it),
+            navController = navControllerFilter,
             startDestination = BottomNavigationScreen.TvFilterScreen.route
         ) {
             composable(route = BottomNavigationScreen.MovieFilterScreen.route) {
