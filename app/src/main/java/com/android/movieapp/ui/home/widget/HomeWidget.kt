@@ -14,8 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -380,71 +384,89 @@ fun MovieItemView(
     }
 }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MovieHistoryItemView(
     modifier: Modifier = Modifier,
     history: MediaHistory,
-    onExpandDetails: () -> Unit
+    onExpandDetails: () -> Unit,
+    onRemove: () -> Unit
 ) {
-    Row(
-        modifier = modifier
-            .padding(4.dp)
-            .clickable {
-                onExpandDetails.invoke()
-            },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(modifier = Modifier.fillMaxWidth(0.2f)) {
-            ProgressiveGlowingImage(
-                url = history.data?.image.toString(),
-                glow = true
-            )
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = {
+            if (it == SwipeToDismissBoxValue.StartToEnd || it == SwipeToDismissBoxValue.EndToStart) {
+                onRemove.invoke()
+                return@rememberSwipeToDismissBoxState true
+            } else return@rememberSwipeToDismissBoxState false
         }
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-                .weight(1f)
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {}
+    ) {
+        Row(
+            modifier = modifier
+                .padding(4.dp)
+                .clickable {
+                    onExpandDetails.invoke()
+                },
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = history.data?.title ?: "",
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    shadow = Shadow(
-                        color = Color.Black,
-                        offset = Offset(0f, 0f),
-                        blurRadius = 1f
-                    )
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            Box(modifier = Modifier.fillMaxWidth(0.2f)) {
+                ProgressiveGlowingImage(
+                    url = history.data?.image.toString(),
+                    glow = true
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .weight(1f)
+            ) {
+                Text(
+                    text = history.data?.title ?: "",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        shadow = Shadow(
+                            color = Color.Black,
+                            offset = Offset(0f, 0f),
+                            blurRadius = 1f
+                        )
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.primary,
+                )
 
-            Text(
-                text = "Server : ${history.serverIdx + 1}",
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.primary,
-            )
+                Text(
+                    text = "Server : ${history.serverIdx + 1}",
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.primary,
+                )
 
-            Text(
-                text = "Episode : ${history.index + 1}",
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.primary,
-            )
+                Text(
+                    text = "Episode : ${history.index + 1}",
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.primary,
+                )
 
-            Text(
-                text = "Position : ${history.position.makeTimeString()}",
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.primary,
-            )
+                Text(
+                    text = "Position : ${history.position.makeTimeString()}",
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
     }
 }
+
 
 @Composable
 fun PersonItemView(

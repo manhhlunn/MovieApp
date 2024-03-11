@@ -1,6 +1,7 @@
 package com.android.movieapp.db
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -17,4 +18,7 @@ interface HistoryDao {
 
     @Query("SELECT * FROM MediaHistory ORDER BY time DESC")
     fun getAll(): Flow<List<MediaHistory>>
+
+    @Query("DELETE FROM MediaHistory WHERE id = :id")
+    suspend fun deleteMediaHistory(id: String)
 }
