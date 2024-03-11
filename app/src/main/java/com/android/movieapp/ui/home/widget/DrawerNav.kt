@@ -46,10 +46,11 @@ enum class HomeDrawerNavigation(
     @StringRes val title: Int
 ) {
     PopularScreen("popular_screen", R.drawable.ic_home, R.string.home_title),
+    FilterScreen("filter_screen", R.drawable.ic_filter, R.string.filter_title),
     FavoriteScreen("fav_screen", R.drawable.ic_fav, R.string.fav_title),
     WatchedScreen("watched_screen", R.drawable.ic_lib, R.string.watched),
-    FilterScreen("filter_screen", R.drawable.ic_filter, R.string.filter_title),
     MediaScreen("media_screen", R.drawable.movie_ic, R.string.media),
+    HistoryScreen("history_screen", R.drawable.baseline_history_24, R.string.history),
     RegionScreen("region_screen", R.drawable.ic_country, R.string.country_title),
     LanguageScreen("language_screen", R.drawable.ic_language, R.string.language_title),
 }

@@ -1,9 +1,11 @@
 package com.android.movieapp.db
 
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.android.movieapp.db.converters.IntegerListConverter
+import com.android.movieapp.db.converters.MovieDataConverter
 import com.android.movieapp.db.converters.StringListConverter
 import com.android.movieapp.models.entities.FavoriteMovie
 import com.android.movieapp.models.entities.FavoritePerson
@@ -28,12 +30,13 @@ import com.android.movieapp.models.network.LanguageItemResponse
         (LanguageItemResponse::class), (CountryItemResponse::class),
         (MediaHistory::class)
     ],
-    version = 1,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(
     value = [
-        (StringListConverter::class), (IntegerListConverter::class)
+        (StringListConverter::class), (IntegerListConverter::class), (MovieDataConverter::class)
     ]
 )
 abstract class AppDatabase : RoomDatabase() {

@@ -30,7 +30,7 @@ import com.android.movieapp.ui.ext.asyncMapIndexed
 import com.android.movieapp.ui.ext.mapAsync
 import com.android.movieapp.ui.media.FilterCategory
 import com.android.movieapp.ui.media.FilterCountry
-import com.android.movieapp.ui.media.MediaType
+import com.android.movieapp.ui.media.OMovieType
 import com.android.movieapp.ui.media.SuperStreamCommon
 import com.android.movieapp.ui.media.SuperStreamCommon.appId
 import com.android.movieapp.ui.media.SuperStreamCommon.appIdSecond
@@ -43,7 +43,7 @@ import com.android.movieapp.ui.media.SuperStreamCommon.watchSoMuchAPI
 import com.android.movieapp.ui.media.util.CipherUtils
 import com.android.movieapp.ui.media.util.CryptographyUtil
 import com.android.movieapp.ui.media.util.MD5Utils
-import com.android.movieapp.ui.media.util.SSMediaType
+import com.android.movieapp.ui.media.util.MediaType
 import com.android.movieapp.ui.media.util.SubtitleHelper
 import com.android.movieapp.ui.media.util.SuperStreamUtils
 import com.android.movieapp.ui.media.util.SuperStreamUtils.getExpiryDate
@@ -81,7 +81,7 @@ class MediaRequest(private val mediaService: MediaService) {
     }
 
     suspend fun getOMovie(
-        type: MediaType = MediaType.PhimBo,
+        type: OMovieType = OMovieType.PhimBo,
         page: Int,
         filterCategory: FilterCategory?,
         filterCountry: FilterCountry?,
@@ -352,7 +352,7 @@ class MediaRequest(private val mediaService: MediaService) {
         try {
             val (seasonSlug, episodeSlug) = getEpisodeSlug(season, episode)
             val type =
-                if (season == null && episode == null) SSMediaType.Movies.value else SSMediaType.Series.value
+                if (season == null && episode == null) MediaType.Movies.value else MediaType.Series.value
             val shareKey =
                 mediaService.getResponse("$fourApiUrl/index/share_link?id=${mediaId}&type=$type")
                     .toObject<ShareKeyResponse>()?.data?.link?.substringAfterLast("/")

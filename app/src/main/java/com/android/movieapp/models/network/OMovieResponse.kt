@@ -35,7 +35,9 @@ data class OMovie(
     @SerializedName("quality")
     val quality: String?,
     @SerializedName("slug")
-    val slug: String?
+    val slug: String?,
+    @SerializedName("type")
+    val type: String?
 )
 
 @Keep

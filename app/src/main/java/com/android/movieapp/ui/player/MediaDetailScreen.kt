@@ -92,9 +92,10 @@ import com.android.movieapp.ui.ext.getObject
 import com.android.movieapp.ui.ext.openChromeCustomTab
 import com.android.movieapp.ui.ext.setScreenOrientation
 import com.android.movieapp.ui.media.renderer.CustomTextRenderer
-import com.android.movieapp.ui.media.util.SSMediaType
+import com.android.movieapp.ui.media.util.MediaType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -697,16 +698,21 @@ class OMovieDetailViewModel @Inject constructor(
     private val _serverList = MutableStateFlow<List<OMovieDetail.Episode>>(emptyList())
     val serverList = _serverList.asStateFlow()
 
-    override suspend fun saveHistory() {
-        val id = uiState.value?.slug ?: return
-        mediaRepository.insertHistory(
-            MediaHistory(
-                id = id,
-                serverIdx = serverData.value.first,
-                index = playerIndex.value,
-                position = exoPlayer.currentPosition
+    private var item: SearchResultItem? = null
+
+    override fun saveHistory() {
+        viewModelScope.launch(NonCancellable) {
+            val id = uiState.value?.slug ?: return@launch
+            mediaRepository.insertHistory(
+                MediaHistory(
+                    id = id,
+                    serverIdx = serverData.value.first,
+                    index = playerIndex.value,
+                    position = exoPlayer.currentPosition,
+                    data = item
+                )
             )
-        )
+        }
     }
 
     override fun nextEpisode() {
@@ -731,23 +737,29 @@ class OMovieDetailViewModel @Inject constructor(
     private fun updatePlayer(position: Long) {
         val episode = serverData.value.second?.serverData?.getOrNull(playerIndex.value) ?: return
         val url = episode.linkM3u8 ?: return
-        prepare(SourceLink(episode.name ?: "${1}", url), initialPlaybackPosition = position)
+        prepare(
+            SourceLink(episode.name ?: "${playerIndex.value}", url),
+            initialPlaybackPosition = position
+        )
     }
 
     init {
         viewModelScope.launch {
             exoPlayer.addListener(this@OMovieDetailViewModel)
-            savedStateHandle.get<String>(NavScreen.OMovieDetailScreen.SLUG)?.let { slug ->
-                val response = when (val res = mediaRepository.getOMovieDetail(slug)) {
-                    is NetworkResponse.Error -> mediaRepository.getOMovieDetail2(slug)
-                    is NetworkResponse.Success -> res
-                }
+            savedStateHandle.getObject<SearchResultItem>(NavScreen.OMovieDetailScreen.O_MOVIE)
+                ?.let { media ->
+                    item = media
+                    val slug = media.id ?: return@let
+                    val response = when (val res = mediaRepository.getOMovieDetail(slug)) {
+                        is NetworkResponse.Error -> mediaRepository.getOMovieDetail2(slug)
+                        is NetworkResponse.Success -> res
+                    }
 
-                when (response) {
-                    is NetworkResponse.Error -> _error.send(response)
-                    is NetworkResponse.Success -> handleData(response, slug)
+                    when (response) {
+                        is NetworkResponse.Error -> _error.send(response)
+                        is NetworkResponse.Success -> handleData(response, slug)
+                    }
                 }
-            }
         }
     }
 
@@ -797,22 +809,26 @@ class SuperStreamDetailViewModel @Inject constructor(
 
     private var _tmpSubtitles: List<Subtitle> = emptyList()
     private var _tmpEpisodes: List<Episode> = emptyList()
+    private var item: SearchResultItem? = null
 
-    private suspend fun getDetail(id: String, type: SSMediaType) = when (type) {
-        SSMediaType.Movies -> mediaRepository.getSuperStreamMovieDetail(id)
-        SSMediaType.Series -> mediaRepository.getSuperStreamTvShowDetail(id)
+    private suspend fun getDetail(id: String, type: MediaType) = when (type) {
+        MediaType.Movies -> mediaRepository.getSuperStreamMovieDetail(id)
+        MediaType.Series -> mediaRepository.getSuperStreamTvShowDetail(id)
     }
 
-    override suspend fun saveHistory() {
-        val id = uiState.value?.id ?: return
-        mediaRepository.insertHistory(
-            MediaHistory(
-                id = id,
-                serverIdx = serverIndex.value,
-                index = playerIndex.value,
-                position = exoPlayer.currentPosition
+    override fun saveHistory() {
+        viewModelScope.launch(NonCancellable) {
+            val id = uiState.value?.id ?: return@launch
+            mediaRepository.insertHistory(
+                MediaHistory(
+                    id = id,
+                    serverIdx = serverIndex.value,
+                    index = playerIndex.value,
+                    position = exoPlayer.currentPosition,
+                    data = item,
+                )
             )
-        )
+        }
     }
 
     fun changeServer(serverIndex: Int) {
@@ -863,39 +879,42 @@ class SuperStreamDetailViewModel @Inject constructor(
         viewModelScope.launch {
             exoPlayer.prepare()
             exoPlayer.addListener(this@SuperStreamDetailViewModel)
-            val media =
-                savedStateHandle.getObject<SearchResultItem>(NavScreen.SuperStreamMovieDetailScreen.SS_MOVIE)
-            if (media?.id != null) {
-                when (val response = getDetail(media.id, media.filmType)) {
-                    is NetworkResponse.Error -> _error.send(response)
-                    is NetworkResponse.Success -> {
-                        _uiState.value = response.data
-                        val movieHistory = mediaRepository.getMediaHistory(response.data.id)
-                        if (movieHistory != null) {
-                            _serverIndex.value = movieHistory.serverIdx
-                            _playerIndex.value = movieHistory.index
-                        }
-                        val data = when (response.data) {
-                            is SuperStreamResponse.SuperStreamMovieDetail -> mediaRepository.getSourceLinksSuperStream(
-                                response.data.data?.id ?: return@launch,
-                                null,
-                                null,
-                                response.data.data.id,
-                                response.data.data.imdbId
-                            )
+            savedStateHandle.getObject<SearchResultItem>(NavScreen.SuperStreamMovieDetailScreen.SS_MOVIE)
+                ?.let { media ->
+                    item = media
+                    if (media.id != null) {
+                        when (val response = getDetail(media.id, media.filmType ?: return@launch)) {
+                            is NetworkResponse.Error -> _error.send(response)
+                            is NetworkResponse.Success -> {
+                                _uiState.value = response.data
+                                val movieHistory = mediaRepository.getMediaHistory(response.data.id)
+                                if (movieHistory != null) {
+                                    _serverIndex.value = movieHistory.serverIdx
+                                    _playerIndex.value = movieHistory.index
+                                }
+                                val data = when (response.data) {
+                                    is SuperStreamResponse.SuperStreamMovieDetail -> mediaRepository.getSourceLinksSuperStream(
+                                        response.data.data?.id ?: return@launch,
+                                        null,
+                                        null,
+                                        response.data.data.id,
+                                        response.data.data.imdbId
+                                    )
 
-                            is SuperStreamResponse.SuperStreamTvDetail -> {
-                                if (response.data.data?.episode.isNullOrEmpty().not()) {
-                                    _tmpEpisodes = response.data.data?.episode ?: return@launch
-                                    getEpisodeLink(playerIndex.value) ?: return@launch
-                                } else return@launch
+                                    is SuperStreamResponse.SuperStreamTvDetail -> {
+                                        if (response.data.data?.episode.isNullOrEmpty().not()) {
+                                            _tmpEpisodes =
+                                                response.data.data?.episode ?: return@launch
+                                            getEpisodeLink(playerIndex.value) ?: return@launch
+                                        } else return@launch
+                                    }
+                                }
+
+                                updatePlayer(data, movieHistory?.position ?: 0L)
                             }
                         }
-
-                        updatePlayer(data, movieHistory?.position ?: 0L)
                     }
                 }
-            }
         }
     }
 }
@@ -958,14 +977,12 @@ abstract class BaseMovieDetailViewModel : ViewModel(), Player.Listener {
     }
 
     override fun onCleared() {
-        viewModelScope.launch {
-            saveHistory()
-            exoPlayer.release()
-            super.onCleared()
-        }
+        saveHistory()
+        exoPlayer.release()
+        super.onCleared()
     }
 
-    abstract suspend fun saveHistory()
+    abstract fun saveHistory()
 
     fun changeTrack(tracksIndex: Int, trackIndex: Int) {
         val trackGroup = exoPlayer.currentTracks.groups.getOrNull(tracksIndex)

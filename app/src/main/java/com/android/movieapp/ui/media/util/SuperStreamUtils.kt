@@ -16,13 +16,14 @@ internal object SuperStreamUtils {
 
 }
 
-enum class SSMediaType(val value: Int) {
-    Series(2),
-    Movies(1);
+enum class MediaType(val value: Int, val type: String) {
+    Series(2, "series"),
+    Movies(1,"single");
 
     companion object {
-        fun getSSMediaType(value: Int?): SSMediaType {
+        fun getSSMediaType(value: Int?): MediaType {
             return entries.firstOrNull { it.value == value } ?: Movies
         }
+
     }
 }

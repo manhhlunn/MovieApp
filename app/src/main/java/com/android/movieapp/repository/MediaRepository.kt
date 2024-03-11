@@ -15,7 +15,7 @@ import com.android.movieapp.paging.SuperStreamMoviePaging
 import com.android.movieapp.paging.SuperStreamSearchMoviePaging
 import com.android.movieapp.ui.media.FilterCategory
 import com.android.movieapp.ui.media.FilterCountry
-import com.android.movieapp.ui.media.MediaType
+import com.android.movieapp.ui.media.OMovieType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOn
 
@@ -58,7 +58,7 @@ class MediaRepository(
 
 
     fun getOMovies(
-        type: MediaType,
+        type: OMovieType,
         filterCategory: FilterCategory?,
         filterCountry: FilterCountry?,
         year: Int?

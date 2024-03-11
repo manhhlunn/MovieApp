@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.android.movieapp.R
+import com.android.movieapp.models.entities.MediaHistory
 import com.android.movieapp.models.entities.Person
 import com.android.movieapp.models.network.GenreItemResponse
 import com.android.movieapp.network.Api
@@ -37,6 +38,7 @@ import com.android.movieapp.ui.ext.CircleGlowingImage
 import com.android.movieapp.ui.ext.DropdownItem
 import com.android.movieapp.ui.ext.FilterRow
 import com.android.movieapp.ui.ext.ProgressiveGlowingImage
+import com.android.movieapp.ui.ext.makeTimeString
 import com.android.movieapp.ui.home.Includes
 import com.android.movieapp.ui.home.IncludesData
 import com.android.movieapp.ui.theme.AppYellow
@@ -375,6 +377,72 @@ fun MovieItemView(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@Composable
+fun MovieHistoryItemView(
+    modifier: Modifier = Modifier,
+    history: MediaHistory,
+    onExpandDetails: () -> Unit
+) {
+    Row(
+        modifier = modifier
+            .padding(4.dp)
+            .clickable {
+                onExpandDetails.invoke()
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.fillMaxWidth(0.2f)) {
+            ProgressiveGlowingImage(
+                url = history.data?.image.toString(),
+                glow = true
+            )
+        }
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+                .weight(1f)
+        ) {
+            Text(
+                text = history.data?.title ?: "",
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    shadow = Shadow(
+                        color = Color.Black,
+                        offset = Offset(0f, 0f),
+                        blurRadius = 1f
+                    )
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.primary,
+            )
+
+            Text(
+                text = "Server : ${history.serverIdx + 1}",
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.primary,
+            )
+
+            Text(
+                text = "Episode : ${history.index + 1}",
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.primary,
+            )
+
+            Text(
+                text = "Position : ${history.position.makeTimeString()}",
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 

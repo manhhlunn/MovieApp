@@ -45,14 +45,14 @@ import com.android.movieapp.models.entities.Tv
 import com.android.movieapp.models.network.SearchResultItem
 import com.android.movieapp.network.Api
 import com.android.movieapp.ui.detail.MovieDetailScreen
-import com.android.movieapp.ui.player.OMovieDetailScreen
 import com.android.movieapp.ui.detail.PersonDetailScreen
-import com.android.movieapp.ui.player.SuperStreamDetailScreen
 import com.android.movieapp.ui.detail.TvDetailScreen
 import com.android.movieapp.ui.ext.ZoomableImage
 import com.android.movieapp.ui.home.HomeScreen
 import com.android.movieapp.ui.home.KeyDetailScreen
 import com.android.movieapp.ui.home.widget.LocalDarkTheme
+import com.android.movieapp.ui.player.OMovieDetailScreen
+import com.android.movieapp.ui.player.SuperStreamDetailScreen
 import com.android.movieapp.ui.player.sendPauseBroadcast
 import com.android.movieapp.ui.theme.MovieAppTheme
 import com.google.gson.Gson
@@ -219,7 +219,7 @@ class MainActivity : ComponentActivity() {
                                 composable(
                                     route = NavScreen.OMovieDetailScreen.routeWithArgument,
                                     arguments = listOf(
-                                        navArgument(NavScreen.OMovieDetailScreen.SLUG) {
+                                        navArgument(NavScreen.OMovieDetailScreen.O_MOVIE) {
                                             type = NavType.StringType
                                         })
                                 ) {
@@ -384,17 +384,18 @@ sealed class NavScreen(val route: String) {
     }
 
     data object OMovieDetailScreen : NavScreen("o_movie_detail_screen") {
-        const val SLUG: String = "slug"
+        const val O_MOVIE: String = "o_movie"
 
         val routeWithArgument: String
             get() = buildString {
                 append(route)
-                append("/{$SLUG}")
+                append("/{${O_MOVIE}}")
             }
 
-        fun navigateWithArgument(slug: String) = buildString {
+        fun navigateWithArgument(searchResultItem: SearchResultItem) = buildString {
+            val json = Uri.encode(Gson().toJson(searchResultItem))
             append(route)
-            append("/$slug")
+            append("/$json")
         }
     }
 

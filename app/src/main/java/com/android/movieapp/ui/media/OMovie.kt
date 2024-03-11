@@ -2,7 +2,7 @@ package com.android.movieapp.ui.media
 
 
 
-enum class MediaType(val value: String, val displayName: String) {
+enum class OMovieType(val value: String, val displayName: String) {
     PhimMoi("phim-moi", "Phim mới"),
     PhimBo("phim-bo", "Phim bộ"),
     PhimLe("phim-le", "Phim lẻ"),

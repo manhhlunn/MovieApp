@@ -81,6 +81,10 @@ fun HomeScreen(navController: NavController) {
                 composable(route = HomeDrawerNavigation.MediaScreen.route) {
                     MediaScreen(navController = navController)
                 }
+
+                composable(route = HomeDrawerNavigation.HistoryScreen.route) {
+                    HistoryScreen(navController = navController)
+                }
             }
         }
     }

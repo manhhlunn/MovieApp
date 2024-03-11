@@ -38,11 +38,9 @@ import androidx.paging.LoadState
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.compose.collectAsLazyPagingItems
-import com.android.movieapp.MovieApp
 import com.android.movieapp.NavScreen
 import com.android.movieapp.R
 import com.android.movieapp.models.network.HomePageData
-import com.android.movieapp.models.network.OMovie
 import com.android.movieapp.models.network.SearchResultItem
 import com.android.movieapp.repository.MediaRepository
 import com.android.movieapp.ui.ext.SearchBar
@@ -56,7 +54,7 @@ import com.android.movieapp.ui.home.widget.MovieItemView
 import com.android.movieapp.ui.home.widget.TypeScreen
 import com.android.movieapp.ui.media.FilterCategory
 import com.android.movieapp.ui.media.FilterCountry
-import com.android.movieapp.ui.media.MediaType
+import com.android.movieapp.ui.media.OMovieType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -101,12 +99,12 @@ fun MediaScreen(navController: NavController) {
 
 @HiltViewModel
 class MediaViewModel @Inject constructor(private val mediaRepository: MediaRepository) :
-    BaseMediaViewModel<OMovie>() {
+    BaseMediaViewModel() {
 
-    override val invoke: (MediaFilter) -> Flow<PagingData<OMovie>> = {
+    override val invoke: (MediaFilter) -> Flow<PagingData<SearchResultItem>> = {
         if (it.query.isEmpty()) {
             mediaRepository.getOMovies(
-                it.mediaType,
+                it.oMovieType,
                 it.filterCategory,
                 it.filterCountry,
                 it.year
@@ -130,7 +128,7 @@ class MediaViewModel @Inject constructor(private val mediaRepository: MediaRepos
 
 @HiltViewModel
 class SuperStreamMovieViewModel @Inject constructor(private val mediaRepository: MediaRepository) :
-    BaseMediaViewModel<SearchResultItem>() {
+    BaseMediaViewModel() {
 
     override val invoke: (MediaFilter) -> Flow<PagingData<SearchResultItem>> = {
         if (it.query.isEmpty()) {
@@ -175,11 +173,11 @@ fun OMovieScreen(navController: NavController, viewModel: MediaViewModel) {
 
         FilterLine(
             name = "Danh sách",
-            values = uiState.mediaTypes
+            values = uiState.oMovieTypes
         ) { it, _ ->
             Text(
                 text = it.displayName,
-                color = if (it == uiState.filter.mediaType && uiState.filter.query.isEmpty()) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                color = if (it == uiState.filter.oMovieType && uiState.filter.query.isEmpty()) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     shadow = Shadow(
                         color = Color.Black,
@@ -189,7 +187,7 @@ fun OMovieScreen(navController: NavController, viewModel: MediaViewModel) {
                 ),
                 modifier = Modifier
                     .background(
-                        if (it == uiState.filter.mediaType && uiState.filter.query.isEmpty()) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSecondary,
+                        if (it == uiState.filter.oMovieType && uiState.filter.query.isEmpty()) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSecondary,
                         RoundedCornerShape(50)
                     )
                     .padding(horizontal = 12.dp, vertical = 6.dp)
@@ -284,17 +282,15 @@ fun OMovieScreen(navController: NavController, viewModel: MediaViewModel) {
                 items(values.itemCount) { index ->
                     values[index]?.let { item ->
                         MovieItemView(
-                            posterUrl = "${MovieApp.baseImageUrl}${item.thumbUrl}",
-                            title = item.name.toString(),
+                            posterUrl = item.image.toString(),
+                            title = item.title.toString(),
                             bottomRight = item.quality
                         ) {
-                            item.slug?.let { slug ->
-                                navController.navigate(
-                                    NavScreen.OMovieDetailScreen.navigateWithArgument(
-                                        slug
-                                    )
+                            navController.navigate(
+                                NavScreen.OMovieDetailScreen.navigateWithArgument(
+                                    item
                                 )
-                            }
+                            )
                         }
                     }
                 }
@@ -395,9 +391,9 @@ fun SuperStreamMovieScreen(navController: NavController, viewModel: SuperStreamM
 }
 
 
-abstract class BaseMediaViewModel<T : Any> : ViewModel() {
+abstract class BaseMediaViewModel : ViewModel() {
 
-    abstract val invoke: (MediaFilter) -> Flow<PagingData<T>>
+    abstract val invoke: (MediaFilter) -> Flow<PagingData<SearchResultItem>>
 
     private val _uiState = MutableStateFlow(UIStateOMovieScreen())
     val uiState: StateFlow<UIStateOMovieScreen> = _uiState
@@ -467,10 +463,10 @@ abstract class BaseMediaViewModel<T : Any> : ViewModel() {
         }
     }
 
-    fun onMediaTypeChange(mediaType: MediaType) {
+    fun onMediaTypeChange(oMovieType: OMovieType) {
         _uiState.update {
             val newFilter = it.filter.copy(
-                mediaType = mediaType,
+                oMovieType = oMovieType,
                 query = ""
             )
             updateFilter(newFilter)
@@ -537,7 +533,7 @@ abstract class BaseMediaViewModel<T : Any> : ViewModel() {
 }
 
 data class MediaFilter(
-    val mediaType: MediaType = MediaType.PhimBo,
+    val oMovieType: OMovieType = OMovieType.PhimBo,
     val query: String = "",
     val filterCategory: FilterCategory? = null,
     val filterCountry: FilterCountry? = null,
@@ -547,7 +543,7 @@ data class MediaFilter(
 
 data class UIStateOMovieScreen(
     val filter: MediaFilter = MediaFilter(),
-    val mediaTypes: List<MediaType> = MediaType.entries,
+    val oMovieTypes: List<OMovieType> = OMovieType.entries,
     val categories: List<FilterCategory?> = emptyList(),
     val years: List<Int?> = emptyList(),
     val countries: List<FilterCountry?> = emptyList(),

@@ -2,28 +2,29 @@ package com.android.movieapp.paging
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import com.android.movieapp.MovieApp
 import com.android.movieapp.models.network.NetworkResponse
-import com.android.movieapp.models.network.OMovie
 import com.android.movieapp.models.network.OMovieResponse
 import com.android.movieapp.models.network.SearchResultItem
 import com.android.movieapp.models.network.SuperStreamSearchItem.Companion.toSearchResultItem
 import com.android.movieapp.network.service.MediaRequest
 import com.android.movieapp.ui.media.FilterCategory
 import com.android.movieapp.ui.media.FilterCountry
-import com.android.movieapp.ui.media.MediaType
+import com.android.movieapp.ui.media.OMovieType
+import com.android.movieapp.ui.media.util.MediaType
 import kotlin.math.ceil
 
 
-abstract class BaseOMoviePagingSource : PagingSource<Int, OMovie>() {
+abstract class BaseOMoviePagingSource : PagingSource<Int, SearchResultItem>() {
 
-    override fun getRefreshKey(state: PagingState<Int, OMovie>): Int? {
+    override fun getRefreshKey(state: PagingState<Int, SearchResultItem>): Int? {
         return state.anchorPosition?.let { anchorPosition ->
             state.closestPageToPosition(anchorPosition)?.prevKey?.plus(1)
                 ?: state.closestPageToPosition(anchorPosition)?.nextKey?.minus(1)
         }
     }
 
-    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, OMovie> {
+    override suspend fun load(params: LoadParams<Int>): LoadResult<Int, SearchResultItem> {
         val page = params.key ?: 1
         return when (val result = apiFetch(page)) {
             is NetworkResponse.Error -> LoadResult.Error(result.error)
@@ -42,7 +43,12 @@ abstract class BaseOMoviePagingSource : PagingSource<Int, OMovie>() {
                 }
 
                 LoadResult.Page(
-                    data = result.data.pageProps?.data?.items ?: emptyList(),
+                    data = result.data.pageProps?.data?.items?.map { SearchResultItem(
+                        id = it.slug,
+                        title = it.name,
+                        image = "${MovieApp.baseImageUrl}${it.thumbUrl}",
+                        quality = it.quality
+                    ) } ?: emptyList(),
                     prevKey = prevKey,
                     nextKey = nextKey
                 )
@@ -72,7 +78,7 @@ class SearchOMoviePaging(
 
 class OMoviePaging(
     private val mediaRequest: MediaRequest,
-    private val type: MediaType,
+    private val type: OMovieType,
     private val filterCategory: FilterCategory?,
     private val filterCountry: FilterCountry?,
     private val year: Int?

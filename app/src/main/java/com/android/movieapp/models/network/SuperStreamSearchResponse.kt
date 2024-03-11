@@ -1,7 +1,7 @@
 package com.android.movieapp.models.network
 
 import androidx.annotation.Keep
-import com.android.movieapp.ui.media.util.SSMediaType.Companion.getSSMediaType
+import com.android.movieapp.ui.media.util.MediaType.Companion.getSSMediaType
 import com.google.gson.annotations.SerializedName
 
 

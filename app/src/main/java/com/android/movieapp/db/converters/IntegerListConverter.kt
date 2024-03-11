@@ -13,7 +13,7 @@ open class IntegerListConverter {
     }
 
     @TypeConverter
-    fun fromList(list: List<Int>): String {
+    fun toString(list: List<Int>): String {
         val gson = Gson()
         return gson.toJson(list)
     }
