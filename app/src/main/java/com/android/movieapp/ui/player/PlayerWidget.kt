@@ -118,7 +118,7 @@ fun CustomPlayerView(
             || (mediaState as? MediaState.Playing)?.isPlay != true
             || isSettingsEnabled
 
-    LaunchedEffect(key1 = controllerShowTime, key2 = isShowController) {
+    LaunchedEffect(key1 = controllerShowTime) {
         if (controllerShowTime > 0) {
             delay(100L)
             controllerShowTime -= 100L
@@ -154,6 +154,9 @@ fun CustomPlayerView(
                         },
                         onDoubleTap = {
                             exoPlayer.seekForward()
+                        },
+                        onLongPress = {
+                            speed = if (speed == 1f) 2f else 1f
                         }
                     )
                 }

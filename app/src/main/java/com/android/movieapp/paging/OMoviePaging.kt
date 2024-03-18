@@ -5,13 +5,13 @@ import androidx.paging.PagingState
 import com.android.movieapp.MovieApp
 import com.android.movieapp.models.network.NetworkResponse
 import com.android.movieapp.models.network.OMovieResponse
+import com.android.movieapp.models.network.OMovieResponse2
 import com.android.movieapp.models.network.SearchResultItem
 import com.android.movieapp.models.network.SuperStreamSearchItem.Companion.toSearchResultItem
 import com.android.movieapp.network.service.MediaRequest
 import com.android.movieapp.ui.media.FilterCategory
 import com.android.movieapp.ui.media.FilterCountry
 import com.android.movieapp.ui.media.OMovieType
-import com.android.movieapp.ui.media.util.MediaType
 import kotlin.math.ceil
 
 
@@ -24,31 +24,67 @@ abstract class BaseOMoviePagingSource : PagingSource<Int, SearchResultItem>() {
         }
     }
 
+
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, SearchResultItem> {
         val page = params.key ?: 1
         return when (val result = apiFetch(page)) {
-            is NetworkResponse.Error -> LoadResult.Error(result.error)
+            is NetworkResponse.Error -> {
+                when (val result2 = apiFetch2(page)) {
+                    is NetworkResponse.Error -> {
+                        LoadResult.Error(result2.error)
+                    }
+
+                    is NetworkResponse.Success -> {
+                        val prevKey = if (page == 1) null else page - 1
+                        val nextKey by lazy {
+                            val totalItems =
+                                result2.data.pageProps?.data?.params?.pagination?.totalItems
+                                    ?: return@lazy null
+                            val totalItemsPerPage =
+                                result2.data.pageProps.data.params.pagination.totalItemsPerPage
+                                    ?: return@lazy null
+                            val maxPage = ceil(totalItems / totalItemsPerPage.toDouble()).toInt()
+                            return@lazy if (page < maxPage) page + 1 else null
+                        }
+
+                        LoadResult.Page(
+                            data = result2.data.pageProps?.data?.items?.map {
+                                SearchResultItem(
+                                    id = it.slug,
+                                    title = it.name,
+                                    image = "${MovieApp.baseImageUrl}${it.thumbUrl}",
+                                    quality = it.quality
+                                )
+                            } ?: emptyList(),
+                            prevKey = prevKey,
+                            nextKey = nextKey
+                        )
+                    }
+                }
+            }
 
             is NetworkResponse.Success -> {
                 val prevKey = if (page == 1) null else page - 1
                 val nextKey by lazy {
                     val totalItems =
-                        result.data.pageProps?.data?.params?.pagination?.totalItems
+                        result.data.data?.params?.pagination?.totalItems
                             ?: return@lazy null
                     val totalItemsPerPage =
-                        result.data.pageProps.data.params.pagination.totalItemsPerPage
+                        result.data.data.params.pagination.totalItemsPerPage
                             ?: return@lazy null
                     val maxPage = ceil(totalItems / totalItemsPerPage.toDouble()).toInt()
                     return@lazy if (page < maxPage) page + 1 else null
                 }
 
                 LoadResult.Page(
-                    data = result.data.pageProps?.data?.items?.map { SearchResultItem(
-                        id = it.slug,
-                        title = it.name,
-                        image = "${MovieApp.baseImageUrl}${it.thumbUrl}",
-                        quality = it.quality
-                    ) } ?: emptyList(),
+                    data = result.data.data?.items?.map {
+                        SearchResultItem(
+                            id = it.slug,
+                            title = it.name,
+                            image = "${MovieApp.baseImageUrl}${it.thumbUrl}",
+                            quality = it.quality
+                        )
+                    } ?: emptyList(),
                     prevKey = prevKey,
                     nextKey = nextKey
                 )
@@ -57,6 +93,7 @@ abstract class BaseOMoviePagingSource : PagingSource<Int, SearchResultItem>() {
     }
 
     abstract suspend fun apiFetch(page: Int): NetworkResponse<OMovieResponse>
+    abstract suspend fun apiFetch2(page: Int): NetworkResponse<OMovieResponse2>
 
 }
 
@@ -74,6 +111,14 @@ class SearchOMoviePaging(
         filterCountry = filterCountry,
         year = year
     )
+
+    override suspend fun apiFetch2(page: Int) = mediaRequest.searchOMovie2(
+        page = page,
+        query = query,
+        filterCategory = filterCategory,
+        filterCountry = filterCountry,
+        year = year
+    )
 }
 
 class OMoviePaging(
@@ -84,6 +129,14 @@ class OMoviePaging(
     private val year: Int?
 ) : BaseOMoviePagingSource() {
     override suspend fun apiFetch(page: Int) = mediaRequest.getOMovie(
+        page = page,
+        type = type,
+        filterCategory = filterCategory,
+        filterCountry = filterCountry,
+        year = year
+    )
+
+    override suspend fun apiFetch2(page: Int) = mediaRequest.getOMovie2(
         page = page,
         type = type,
         filterCategory = filterCategory,

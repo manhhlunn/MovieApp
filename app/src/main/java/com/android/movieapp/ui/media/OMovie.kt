@@ -18,6 +18,10 @@ enum class OMovieType(val value: String, val displayName: String) {
     fun getFile(): String {
         return "/danh-sach/$value.json"
     }
+
+    fun getSlug(): String {
+        return "/danh-sach/$value"
+    }
 }
 
 enum class FilterCategory(val value: String, val displayName: String) {

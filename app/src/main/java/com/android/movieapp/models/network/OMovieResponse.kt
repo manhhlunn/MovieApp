@@ -6,6 +6,20 @@ import com.google.gson.annotations.SerializedName
 
 @Keep
 data class OMovieResponse(
+    @SerializedName("data")
+    val data: Data?
+) {
+    @Keep
+    data class Data(
+        @SerializedName("items")
+        val items: List<OMovie>?,
+        @SerializedName("params")
+        val params: Params?
+    )
+}
+
+@Keep
+data class OMovieResponse2(
     @SerializedName("pageProps")
     val pageProps: PageProps?
 ) {

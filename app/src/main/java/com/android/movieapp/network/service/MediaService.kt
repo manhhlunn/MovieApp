@@ -12,6 +12,7 @@ import com.android.movieapp.models.network.OMovieDetail
 import com.android.movieapp.models.network.OMovieDetailResponse
 import com.android.movieapp.models.network.OMovieDetailResponse2
 import com.android.movieapp.models.network.OMovieResponse
+import com.android.movieapp.models.network.OMovieResponse2
 import com.android.movieapp.models.network.OsResult
 import com.android.movieapp.models.network.ShareKeyResponse
 import com.android.movieapp.models.network.SourceLink
@@ -89,6 +90,25 @@ class MediaRequest(private val mediaService: MediaService) {
     ): NetworkResponse<OMovieResponse> {
         disableSSLVerification()
         return mediaService.request<OMovieResponse>(
+            url = "https://ophim1.com/v1/api/${type.getSlug()}",
+            parameters = hashMapOf<String, Any>().apply {
+                put("page", page)
+                if (filterCategory != null) put("category", filterCategory.value)
+                if (filterCountry != null) put("country", filterCountry.value)
+                if (year != null) put("year", year)
+            }
+        )
+    }
+
+    suspend fun getOMovie2(
+        type: OMovieType = OMovieType.PhimBo,
+        page: Int,
+        filterCategory: FilterCategory?,
+        filterCountry: FilterCountry?,
+        year: Int?
+    ): NetworkResponse<OMovieResponse2> {
+        disableSSLVerification()
+        return mediaService.request<OMovieResponse2>(
             url = "${MovieApp.baseURL}${type.getFile()}",
             parameters = hashMapOf<String, Any>().apply {
                 put("page", page)
@@ -104,7 +124,7 @@ class MediaRequest(private val mediaService: MediaService) {
     ): NetworkResponse<OMovieDetail> {
         disableSSLVerification()
         return mediaService.request<OMovieDetailResponse>(
-            url = "https://ophim1.com/phim/$slug"
+            url = "https://ophim1.com/v1/api/phim/$slug"
         ).resDetail()
     }
 
@@ -126,6 +146,26 @@ class MediaRequest(private val mediaService: MediaService) {
     ): NetworkResponse<OMovieResponse> {
         disableSSLVerification()
         return mediaService.request<OMovieResponse>(
+            url = "https://ophim1.com/v1/api/danh-sach/tim-kiem",
+            parameters = hashMapOf<String, Any>().apply {
+                put("page", page)
+                put("keyword", query)
+                if (filterCategory != null) put("category", filterCategory.value)
+                if (filterCountry != null) put("country", filterCountry.value)
+                if (year != null) put("year", year)
+            }
+        )
+    }
+
+    suspend fun searchOMovie2(
+        query: String,
+        page: Int,
+        filterCategory: FilterCategory?,
+        filterCountry: FilterCountry?,
+        year: Int?
+    ): NetworkResponse<OMovieResponse2> {
+        disableSSLVerification()
+        return mediaService.request<OMovieResponse2>(
             url = "${MovieApp.baseURL}tim-kiem.json",
             parameters = hashMapOf<String, Any>().apply {
                 put("page", page)

@@ -1043,12 +1043,13 @@ abstract class BaseMovieDetailViewModel : ViewModel(), Player.Listener {
         super.onPlaybackStateChanged(playbackState)
         when (playbackState) {
             Player.STATE_IDLE -> _mediaState.value = MediaState.Init
+            Player.STATE_BUFFERING -> _mediaState.value = MediaState.Loading
+
             Player.STATE_READY -> {
                 _mediaState.value = MediaState.Playing(exoPlayer.isPlaying)
                 _duration.value = exoPlayer.duration
             }
 
-            Player.STATE_BUFFERING -> _mediaState.value = MediaState.Loading
             Player.STATE_ENDED -> nextEpisode()
         }
     }

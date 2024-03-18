@@ -9,11 +9,15 @@ import kotlinx.parcelize.Parcelize
 
 @Keep
 data class OMovieDetailResponse(
-    @SerializedName("episodes")
-    val episodes: List<OMovieDetail.Episode>?,
-    @SerializedName("movie")
-    val movie: OMovieDetail?
-)
+    @SerializedName("data")
+    val data: Data?
+) {
+    @Keep
+    data class Data(
+        @SerializedName("item")
+        val item: OMovieDetail?
+    )
+}
 
 
 @Keep
@@ -100,8 +104,9 @@ fun NetworkResponse<OMovieDetailResponse>.resDetail(): NetworkResponse<OMovieDet
     when (this) {
         is NetworkResponse.Success -> {
             return NetworkResponse.Success(
-                data = this.data.movie?.copy(
-                    episodes = this.data.episodes
+                data = this.data.data?.item?.copy(
+                    posterUrl = "${MovieApp.baseImageUrl}${this.data.data.item.posterUrl}",
+                    thumbUrl = "${MovieApp.baseImageUrl}${this.data.data.item.thumbUrl}"
                 )
                     ?: return NetworkResponse.Error(CustomException.Normal(Exception("Data not found")))
             )
