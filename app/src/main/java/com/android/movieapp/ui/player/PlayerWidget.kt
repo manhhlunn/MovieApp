@@ -118,13 +118,21 @@ fun CustomPlayerView(
             || (mediaState as? MediaState.Playing)?.isPlay != true
             || isSettingsEnabled
 
-    LaunchedEffect(key1 = controllerShowTime) {
-        if (controllerShowTime > 0) {
+    LaunchedEffect(key1 = isShowController) {
+        while (isShowController) {
             delay(100L)
-            controllerShowTime -= 100L
+            val exoPlayerPosition = exoPlayer.currentPosition
+            if (controllerShowTime > 0) {
+                controllerShowTime -= 100L
+                currentPosition = exoPlayerPosition
+            } else if (isSettingsEnabled) {
+                currentPosition = exoPlayerPosition
+            }
         }
-        val exoPlayerPosition = exoPlayer.currentPosition
-        if (exoPlayerPosition > 0 && controllerShowTime != -1L) currentPosition = exoPlayerPosition
+    }
+
+    LaunchedEffect(key1 = speed) {
+        exoPlayer.setPlaybackSpeed(speed)
     }
 
     Box {
@@ -257,7 +265,6 @@ fun CustomPlayerView(
                     IconButton(
                         onClick = {
                             speed -= 0.1f
-                            exoPlayer.setPlaybackSpeed(speed)
                         }
                     ) {
                         Icon(
@@ -278,7 +285,6 @@ fun CustomPlayerView(
                     IconButton(
                         onClick = {
                             speed += 0.1f
-                            exoPlayer.setPlaybackSpeed(speed)
                         }
                     ) {
                         Icon(
